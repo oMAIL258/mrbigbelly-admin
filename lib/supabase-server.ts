@@ -1,7 +1,9 @@
 import 'server-only';
 import { cookies } from 'next/headers';
-import { createServerClient } from '@supabase/ssr';
+import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
+
+type CookieList = { name: string; value: string; options: CookieOptions }[];
 
 export async function supabaseServer() {
   const cookieStore = await cookies();
@@ -11,7 +13,7 @@ export async function supabaseServer() {
     {
       cookies: {
         getAll: () => cookieStore.getAll(),
-        setAll: (list) => {
+        setAll: (list: CookieList) => {
           try { list.forEach(({ name, value, options }) => cookieStore.set(name, value, options)); }
           catch { /* called from a Server Component; middleware refreshes instead */ }
         },
