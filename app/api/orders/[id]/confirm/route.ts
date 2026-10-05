@@ -17,9 +17,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const lineId = (order as { customers: { line_user_id: string } | null } | null)?.customers?.line_user_id;
+  const row = order as { fulfilment_mode: 'pickup' | 'delivery'; customers: { line_user_id: string } | null } | null;
+  const lineId = row?.customers?.line_user_id;
   if (lineId) {
-    await pushLine(lineId, `✅ Your Mr. Big Belly order is confirmed. Ready in about ${prep_minutes} min.`);
+    const tail = row!.fulfilment_mode === 'pickup'
+      ? `Ready for pickup in about ${prep_minutes} min.`
+      : `We'll have it with you in about ${prep_minutes} min.`;
+    await pushLine(lineId, `👨‍🍳 Payment received — we're preparing your Mr. Big Belly order. ${tail}`);
   }
   return NextResponse.json({ ok: true });
 }

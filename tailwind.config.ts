@@ -4,9 +4,9 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        bg: '#F7F1E7', surface: '#FFFFFF', 'surface-2': '#FBF4E6',
-        ink: '#1E1A17', 'ink-2': '#4A423C', 'ink-3': '#8A7F75',
-        rule: '#E8DDC9', accent: '#C0532F', 'accent-soft': '#E8B48A',
+        bg: '#FFFCF7', surface: '#FFFFFF', 'surface-2': '#F2F7FB',
+        ink: '#0F2436', 'ink-2': '#3D556B', 'ink-3': '#7A8C9B',
+        rule: '#DCE6EF', accent: '#145DA0', 'accent-soft': '#9EC6E6',
       },
       fontFamily: {
         serif: ['Fraunces', 'Georgia', 'serif'],

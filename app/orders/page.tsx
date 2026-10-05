@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { supabaseBrowser } from '@/lib/supabase-browser';
 import { baht } from '@/lib/money';
@@ -26,7 +26,6 @@ export default function OrderBoardPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [bellOn, setBellOn] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const prevNewCount = useRef(0);
 
   useEffect(() => {
     const sb = supabaseBrowser();
@@ -51,18 +50,30 @@ export default function OrderBoardPage() {
     return () => { sb.removeChannel(ch); };
   }, []);
 
+  const newCount = orders.filter((o) => o.status === 'new').length;
+
+  // Keep chiming while anything is still unaccepted, so a new order can't be
+  // missed in a noisy kitchen — not just once on arrival.
   useEffect(() => {
-    const newN = orders.filter((o) => o.status === 'new').length;
-    if (newN > prevNewCount.current && bellOn) ding();
-    prevNewCount.current = newN;
-  }, [orders, bellOn]);
+    if (!bellOn || newCount === 0) return;
+    ding();
+    const t = setInterval(ding, 15000);
+    return () => clearInterval(t);
+  }, [bellOn, newCount]);
 
   return (
     <>
       <Nav />
       <main className="mx-auto max-w-5xl p-4">
         <div className="flex items-center justify-between mb-3">
-          <h1 className="serif text-xl">Order board</h1>
+          <h1 className="serif text-xl">
+            Order board
+            {newCount > 0 && (
+              <span className="ml-2 rounded-full bg-accent text-white text-sm px-2 py-0.5 align-middle">
+                {newCount} waiting
+              </span>
+            )}
+          </h1>
           <button onClick={() => setBellOn((v) => !v)} className="btn-outline">
             {bellOn ? '🔔 Sound on' : '🔕 Sound off'}
           </button>

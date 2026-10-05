@@ -2,10 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer, supabaseAdmin } from '@/lib/supabase-server';
 import { pushLine } from '@/lib/line';
 
-const MESSAGES: Record<string, string> = {
-  ready: '🍴 Your Mr. Big Belly order is ready!',
-  done: '👍 Your Mr. Big Belly order is marked complete. Thank you!',
-};
+function message(to: 'ready' | 'done', mode: 'pickup' | 'delivery') {
+  if (to === 'ready') {
+    return mode === 'pickup'
+      ? '🍴 Your Mr. Big Belly order is ready for pickup!'
+      : '🛵 Your Mr. Big Belly order is on its way to you now.';
+  }
+  return mode === 'pickup'
+    ? '👍 Thanks for picking up your Mr. Big Belly order. See you next time!'
+    : '✅ Your Mr. Big Belly order has been delivered. Enjoy!';
+}
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -25,7 +31,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const lineId = (order as { customers: { line_user_id: string } | null } | null)?.customers?.line_user_id;
-  if (lineId && MESSAGES[to]) await pushLine(lineId, MESSAGES[to]);
+  const row = order as { fulfilment_mode: 'pickup' | 'delivery'; customers: { line_user_id: string } | null } | null;
+  const lineId = row?.customers?.line_user_id;
+  if (lineId) await pushLine(lineId, message(to, row!.fulfilment_mode));
   return NextResponse.json({ ok: true });
 }

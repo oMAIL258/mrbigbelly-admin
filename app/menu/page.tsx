@@ -1,22 +1,26 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { supabaseBrowser } from '@/lib/supabase-browser';
 import { baht } from '@/lib/money';
 import { Nav } from '@/components/Nav';
 
-type Item = { id: string; name_en: string; name_th: string | null; price_satang: number; is_available: boolean; category_id: string };
+type Item = {
+  id: string; name_en: string; name_th: string | null;
+  price_satang: number; is_available: boolean; category_id: string; photo_url: string | null;
+};
 type Cat = { id: string; name_en: string; sort: number };
 
 export default function MenuAdminPage() {
   const [cats, setCats] = useState<Cat[]>([]);
   const [items, setItems] = useState<Item[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
 
   async function load() {
     const sb = supabaseBrowser();
     const [c, i] = await Promise.all([
       sb.from('categories').select('id, name_en, sort').order('sort'),
-      sb.from('menu_items').select('id, name_en, name_th, price_satang, is_available, category_id').order('sort'),
+      sb.from('menu_items').select('id, name_en, name_th, price_satang, is_available, category_id, photo_url').order('sort'),
     ]);
     if (c.data) setCats(c.data as Cat[]);
     if (i.data) setItems(i.data as Item[]);
@@ -24,9 +28,34 @@ export default function MenuAdminPage() {
   useEffect(() => { load(); }, []);
 
   async function toggle(it: Item) {
-    setBusy(it.id);
-    await supabaseBrowser().from('menu_items').update({ is_available: !it.is_available }).eq('id', it.id);
-    await load();
+    setBusy(it.id); setErr(null);
+    const { error } = await supabaseBrowser().from('menu_items').update({ is_available: !it.is_available }).eq('id', it.id);
+    if (error) setErr(error.message); else await load();
+    setBusy(null);
+  }
+
+  async function uploadPhoto(it: Item, file: File) {
+    setBusy(it.id); setErr(null);
+    try {
+      const sb = supabaseBrowser();
+      const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+      const path = `${it.id}/${Date.now()}.${ext}`;
+      const up = await sb.storage.from('menu-photos').upload(path, file, { contentType: file.type, upsert: true });
+      if (up.error) throw up.error;
+      const { data } = sb.storage.from('menu-photos').getPublicUrl(up.data.path);
+      const { error } = await sb.from('menu_items').update({ photo_url: data.publicUrl }).eq('id', it.id);
+      if (error) throw error;
+      await load();
+    } catch (e) {
+      setErr((e as Error).message);
+    }
+    setBusy(null);
+  }
+
+  async function removePhoto(it: Item) {
+    setBusy(it.id); setErr(null);
+    const { error } = await supabaseBrowser().from('menu_items').update({ photo_url: null }).eq('id', it.id);
+    if (error) setErr(error.message); else await load();
     setBusy(null);
   }
 
@@ -34,8 +63,12 @@ export default function MenuAdminPage() {
     <>
       <Nav />
       <main className="mx-auto max-w-3xl p-4">
-        <h1 className="serif text-xl mb-3">Menu</h1>
-        <p className="text-ink-3 text-sm mb-4">Toggle items on/off while you’re open. Full editing (prices, options, photos) comes next.</p>
+        <h1 className="serif text-xl mb-1">Menu</h1>
+        <p className="text-ink-3 text-sm mb-4">
+          Add a photo to any dish, and switch items off when you run out. Everything is on by default.
+        </p>
+        {err && <div className="card border-accent p-3 mb-3 text-sm text-accent">{err}</div>}
+
         {cats.map((c) => {
           const list = items.filter((i) => i.category_id === c.id);
           if (list.length === 0) return null;
@@ -44,20 +77,14 @@ export default function MenuAdminPage() {
               <h2 className="serif text-base mb-2">{c.name_en}</h2>
               <ul className="card divide-y divide-rule">
                 {list.map((it) => (
-                  <li key={it.id} className="p-3 flex items-center gap-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm">{it.name_en}</div>
-                      {it.name_th && <div className="text-ink-3 text-xs">{it.name_th}</div>}
-                    </div>
-                    <div className="text-sm text-ink-2">{baht(it.price_satang)}</div>
-                    <button
-                      disabled={busy === it.id}
-                      onClick={() => toggle(it)}
-                      className={`btn ${it.is_available ? 'bg-white border border-rule' : 'bg-ink-3/20'}`}
-                    >
-                      {it.is_available ? 'Available' : 'Sold out'}
-                    </button>
-                  </li>
+                  <MenuRow
+                    key={it.id}
+                    item={it}
+                    busy={busy === it.id}
+                    onToggle={() => toggle(it)}
+                    onUpload={(f) => uploadPhoto(it, f)}
+                    onRemovePhoto={() => removePhoto(it)}
+                  />
                 ))}
               </ul>
             </section>
@@ -65,5 +92,52 @@ export default function MenuAdminPage() {
         })}
       </main>
     </>
+  );
+}
+
+function MenuRow({ item, busy, onToggle, onUpload, onRemovePhoto }: {
+  item: Item; busy: boolean;
+  onToggle: () => void; onUpload: (f: File) => void; onRemovePhoto: () => void;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  return (
+    <li className="p-3 flex items-center gap-3">
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) onUpload(f); e.target.value = ''; }}
+      />
+      <button
+        onClick={() => fileRef.current?.click()}
+        disabled={busy}
+        title={item.photo_url ? 'Replace photo' : 'Add photo'}
+        className="h-14 w-14 shrink-0 rounded-xl border border-rule overflow-hidden bg-surface-2 text-ink-3 text-xs"
+      >
+        {item.photo_url
+          ? <img src={item.photo_url} alt="" className="h-full w-full object-cover" />
+          : <span>+ Photo</span>}
+      </button>
+
+      <div className="flex-1 min-w-0">
+        <div className="text-sm truncate">{item.name_en}</div>
+        {item.name_th && <div className="text-ink-3 text-xs truncate">{item.name_th}</div>}
+        {item.photo_url && (
+          <button onClick={onRemovePhoto} disabled={busy} className="text-ink-3 text-xs underline mt-1">
+            Remove photo
+          </button>
+        )}
+      </div>
+
+      <div className="text-sm text-ink-2 whitespace-nowrap">{baht(item.price_satang)}</div>
+      <button
+        disabled={busy}
+        onClick={onToggle}
+        className={`btn whitespace-nowrap ${item.is_available ? 'bg-white border border-rule' : 'bg-accent text-white'}`}
+      >
+        {busy ? '…' : item.is_available ? 'Available' : 'Sold out'}
+      </button>
+    </li>
   );
 }
