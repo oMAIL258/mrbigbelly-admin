@@ -25,17 +25,19 @@ const COLS: { key: Order['status']; label: string }[] = [
 export default function OrderBoardPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [bellOn, setBellOn] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const prevNewCount = useRef(0);
 
   useEffect(() => {
     const sb = supabaseBrowser();
     (async () => {
-      const { data } = await sb.from('orders')
+      const { data, error } = await sb.from('orders')
         .select('id, short_code, status, total_satang, fulfilment_mode, prep_minutes, created_at')
         .in('status', ['new', 'confirmed', 'ready', 'done'])
         .order('created_at', { ascending: false })
         .limit(100);
-      if (data) setOrders(data as Order[]);
+      if (error) { setLoadError(error.message); return; }
+      setOrders((data ?? []) as Order[]);
     })();
     const ch = sb.channel('orders-board')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => {
@@ -65,6 +67,12 @@ export default function OrderBoardPage() {
             {bellOn ? '🔔 Sound on' : '🔕 Sound off'}
           </button>
         </div>
+        {loadError && (
+          <div className="card border-accent p-3 mb-3 text-sm">
+            <strong className="text-accent">Could not load orders.</strong>
+            <div className="text-ink-2 mt-1">{loadError}</div>
+          </div>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
           {COLS.map((c) => {
             const col = orders.filter((o) => o.status === c.key);
