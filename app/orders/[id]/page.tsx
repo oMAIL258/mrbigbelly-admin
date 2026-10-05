@@ -80,7 +80,13 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
               <div className="text-ink-2">{delivery.contact_name} · {delivery.contact_phone}</div>
             </div>
           ) : <p className="text-ink-3 text-sm">(no delivery details)</p>}
-          {customer?.display_name && <p className="text-ink-3 text-xs mt-2">LINE: {customer.display_name}</p>}
+          {customer?.line_user_id ? (
+            <p className="text-ink-3 text-xs mt-2">LINE: {customer.display_name ?? 'linked'} · status updates are sent automatically</p>
+          ) : (
+            <p className="text-accent text-xs mt-2">
+              No LINE contact for this order — status updates can&rsquo;t be sent. Phone the customer instead.
+            </p>
+          )}
         </section>
 
         <section className="card p-4 mt-3">

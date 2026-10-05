@@ -16,9 +16,10 @@ export function OrderActions({ orderId, status, prepMinutes }: { orderId: string
   const [reason, setReason] = useState(REJECT_REASONS[0]);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [pushWarning, setPushWarning] = useState<string | null>(null);
 
   async function post(path: string, body?: object) {
-    setBusy(true); setErr(null);
+    setBusy(true); setErr(null); setPushWarning(null);
     const res = await fetch(`/api/orders/${orderId}/${path}`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -26,17 +27,33 @@ export function OrderActions({ orderId, status, prepMinutes }: { orderId: string
     });
     setBusy(false);
     if (!res.ok) { setErr(await res.text()); return; }
+    const data = (await res.json()) as { push?: { ok: boolean; reason?: string } };
+    if (data.push && !data.push.ok) setPushWarning(data.push.reason ?? 'The LINE message did not send.');
     router.refresh();
   }
 
+  const warning = pushWarning && (
+    <div className="card border-accent p-3 text-sm">
+      <strong className="text-accent">The customer was not notified on LINE.</strong>
+      <div className="text-ink-2 mt-1">{pushWarning}</div>
+      <div className="text-ink-3 text-xs mt-1">The order status itself was saved correctly.</div>
+    </div>
+  );
+
   if (status === 'done' || status === 'rejected') {
-    return <p className="text-ink-3 text-sm text-center py-4">Order {status}.</p>;
+    return (
+      <section className="mt-3 space-y-3">
+        {warning}
+        <p className="text-ink-3 text-sm text-center py-4">Order {status}.</p>
+      </section>
+    );
   }
 
   return (
     <section className="card p-4 mt-3 space-y-4">
       <h2 className="serif text-base">Actions</h2>
       {err && <div className="text-accent text-sm">{err}</div>}
+      {warning}
 
       {status === 'new' && (
         <>

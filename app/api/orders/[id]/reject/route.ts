@@ -18,8 +18,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   const lineId = (order as { customers: { line_user_id: string } | null } | null)?.customers?.line_user_id;
-  if (lineId) {
-    await pushLine(lineId, `❌ Your Mr. Big Belly order was declined. Reason: ${reason}. If you were charged we will refund via LINE.`);
-  }
-  return NextResponse.json({ ok: true });
+  const push = await pushLine(
+    lineId,
+    `❌ Your Mr. Big Belly order was declined.\nReason: ${reason}\n\nIf you were charged we will refund you here on LINE.`,
+  );
+  return NextResponse.json({ ok: true, push });
 }
