@@ -9,6 +9,7 @@ type Health = {
   liffId: string | null;
   bot: { displayName: string; basicId: string } | null;
   recent: { total: number; withLine: number };
+  customer: { reachable: boolean; lineToken: boolean };
 };
 
 type Contact = { line_user_id: string; display_name: string | null };
@@ -207,6 +208,18 @@ export default function SettingsPage() {
                   {health.liffId
                     ? <>Order links point at LIFF app <code className="text-xs">{health.liffId}</code>.</>
                     : 'LINE_LIFF_ID is not set, so messages go out without a link back to the order.'}
+                </span>
+              </div>
+              <div className="flex gap-2">
+                <span className={health.customer?.lineToken ? 'text-veg' : 'text-accent'}>
+                  {health.customer?.lineToken ? '✓' : '✕'}
+                </span>
+                <span>
+                  {health.customer?.lineToken
+                    ? 'New orders alert the people ticked above.'
+                    : health.customer?.reachable
+                      ? 'The ordering site has no LINE token, so a new order cannot alert anyone. Add LINE_CHANNEL_ACCESS_TOKEN to the mrbigbelly-order site on Netlify and redeploy it.'
+                      : 'Could not reach the ordering site to check whether it can send order alerts.'}
                 </span>
               </div>
               <div className="flex gap-2">

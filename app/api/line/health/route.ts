@@ -51,11 +51,25 @@ export async function GET() {
   const rows = (recent ?? []) as unknown as { customers: CustomerJoin }[];
   const withLine = rows.filter((r) => lineIdOf(r.customers)).length;
 
+  // New-order alerts are sent by the customer site, which has its own copy of
+  // the token. Ask it directly, because a variable missing over there is
+  // invisible from here and looks exactly like everything working.
+  const site = process.env.CUSTOMER_SITE_URL ?? 'https://mrbigbelly-order.netlify.app';
+  let customer: { reachable: boolean; lineToken: boolean } = { reachable: false, lineToken: false };
+  try {
+    const r = await fetch(`${site}/api/health`, { cache: 'no-store' });
+    if (r.ok) {
+      const j = (await r.json()) as { lineToken?: boolean };
+      customer = { reachable: true, lineToken: Boolean(j.lineToken) };
+    }
+  } catch { /* left as unreachable */ }
+
   return NextResponse.json({
     tokenOk,
     detail,
     liffId,
     bot,
     recent: { total: rows.length, withLine },
+    customer,
   });
 }
