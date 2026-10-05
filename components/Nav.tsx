@@ -6,6 +6,7 @@ import { supabaseBrowser } from '@/lib/supabase-browser';
 const TABS = [
   { href: '/orders', label: 'Orders' },
   { href: '/menu', label: 'Menu' },
+  { href: '/reports', label: 'Reports' },
   { href: '/settings', label: 'Settings' },
 ];
 
