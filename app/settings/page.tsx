@@ -11,6 +11,8 @@ type Health = {
   recent: { total: number; withLine: number };
 };
 
+type Contact = { line_user_id: string; display_name: string | null };
+
 type Settings = {
   id: string;
   open_time: string;
@@ -27,6 +29,8 @@ export default function SettingsPage() {
   const [err, setErr] = useState<string | null>(null);
   const [health, setHealth] = useState<Health | null>(null);
   const [checking, setChecking] = useState(true);
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [alerted, setAlerted] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     (async () => {
@@ -35,6 +39,33 @@ export default function SettingsPage() {
       if (data) setS(data as Settings);
     })();
   }, []);
+
+  useEffect(() => {
+    (async () => {
+      const sb = supabaseBrowser();
+      const [c, a] = await Promise.all([
+        sb.from('customers').select('line_user_id, display_name')
+          .not('line_user_id', 'is', null).order('created_at', { ascending: false }).limit(50),
+        sb.from('staff_alerts').select('line_user_id'),
+      ]);
+      setContacts((c.data ?? []) as Contact[]);
+      setAlerted(new Set(((a.data ?? []) as { line_user_id: string }[]).map((r) => r.line_user_id)));
+    })();
+  }, []);
+
+  async function toggleAlert(c: Contact, on: boolean) {
+    const sb = supabaseBrowser();
+    setAlerted((cur) => {
+      const next = new Set(cur);
+      if (on) next.add(c.line_user_id); else next.delete(c.line_user_id);
+      return next;
+    });
+    if (on) {
+      await sb.from('staff_alerts').upsert({ line_user_id: c.line_user_id, display_name: c.display_name });
+    } else {
+      await sb.from('staff_alerts').delete().eq('line_user_id', c.line_user_id);
+    }
+  }
 
   async function checkLine() {
     setChecking(true);
@@ -121,6 +152,37 @@ export default function SettingsPage() {
           <button onClick={() => save()} disabled={saving} className="btn-primary">
             {saving ? 'Saving…' : 'Save'}
           </button>
+        </section>
+
+        <section className="card p-4">
+          <h2 className="serif text-base">Who gets told about new orders</h2>
+          <p className="text-ink-3 text-sm mt-1">
+            Anyone ticked here gets a LINE message the moment an order comes in, so you still
+            hear about it with the order board closed. Tick your own name. Names appear here
+            once someone has ordered through LINE.
+          </p>
+          {contacts.length === 0 ? (
+            <p className="text-ink-3 text-sm mt-3">
+              Nobody has ordered through LINE yet, so there is nobody to pick.
+            </p>
+          ) : (
+            <ul className="mt-3 divide-y divide-rule">
+              {contacts.map((c) => (
+                <li key={c.line_user_id} className="flex items-center gap-3 py-2">
+                  <input
+                    id={c.line_user_id}
+                    type="checkbox"
+                    checked={alerted.has(c.line_user_id)}
+                    onChange={(e) => toggleAlert(c, e.target.checked)}
+                    className="h-4 w-4 accent-accent"
+                  />
+                  <label htmlFor={c.line_user_id} className="text-sm flex-1 cursor-pointer">
+                    {c.display_name ?? 'LINE customer'}
+                  </label>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
 
         <section className={`card p-4 ${health && !health.tokenOk ? 'border-accent' : ''}`}>

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { supabaseBrowser } from '@/lib/supabase-browser';
 import { baht } from '@/lib/money';
 import { Nav } from '@/components/Nav';
+import { alarm, unlockAudio, askNotifyPermission, notify } from '@/lib/alarm';
 
 type Order = {
   id: string;
@@ -41,7 +42,11 @@ export default function OrderBoardPage() {
     const ch = sb.channel('orders-board')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => {
         setOrders((cur) => {
-          if (payload.eventType === 'INSERT') return [payload.new as Order, ...cur];
+          if (payload.eventType === 'INSERT') {
+            const o = payload.new as Order;
+            notify('New order', `${o.short_code ?? 'Order'} · ${o.fulfilment_mode === 'pickup' ? 'Pickup' : 'Delivery'}`);
+            return [o, ...cur];
+          }
           if (payload.eventType === 'UPDATE') return cur.map((o) => o.id === (payload.new as Order).id ? (payload.new as Order) : o);
           return cur;
         });
@@ -52,14 +57,34 @@ export default function OrderBoardPage() {
 
   const newCount = orders.filter((o) => o.status === 'new').length;
 
-  // Keep chiming while anything is still unaccepted, so a new order can't be
+  // Keep sounding while anything is still unaccepted, so a new order can't be
   // missed in a noisy kitchen — not just once on arrival.
   useEffect(() => {
     if (!bellOn || newCount === 0) return;
-    ding();
-    const t = setInterval(ding, 15000);
+    alarm();
+    const t = setInterval(alarm, 8000);
     return () => clearInterval(t);
   }, [bellOn, newCount]);
+
+  // The tab is usually behind something else, so say it in the tab title too.
+  useEffect(() => {
+    if (newCount === 0) { document.title = 'Mr. Big Belly · Admin'; return; }
+    let on = false;
+    const flash = () => {
+      on = !on;
+      document.title = on ? `🔔 ${newCount} NEW ORDER${newCount > 1 ? 'S' : ''}` : 'Mr. Big Belly · Admin';
+    };
+    flash();
+    const t = setInterval(flash, 900);
+    return () => { clearInterval(t); document.title = 'Mr. Big Belly · Admin'; };
+  }, [newCount]);
+
+  // Browsers refuse audio and notifications until the page has seen a click.
+  useEffect(() => {
+    const unlock = () => { unlockAudio(); void askNotifyPermission(); };
+    window.addEventListener('pointerdown', unlock, { once: true });
+    return () => window.removeEventListener('pointerdown', unlock);
+  }, []);
 
   return (
     <>
@@ -74,9 +99,14 @@ export default function OrderBoardPage() {
               </span>
             )}
           </h1>
-          <button onClick={() => setBellOn((v) => !v)} className="btn-outline">
-            {bellOn ? '🔔 Sound on' : '🔕 Sound off'}
-          </button>
+          <div className="flex gap-2">
+            <button onClick={() => { unlockAudio(); void askNotifyPermission(); alarm(); }} className="btn-outline">
+              Test alarm
+            </button>
+            <button onClick={() => { unlockAudio(); setBellOn((v) => !v); }} className="btn-outline">
+              {bellOn ? '🔔 Sound on' : '🔕 Sound off'}
+            </button>
+          </div>
         </div>
         {loadError && (
           <div className="card border-accent p-3 mb-3 text-sm">
@@ -120,22 +150,4 @@ export default function OrderBoardPage() {
       </main>
     </>
   );
-}
-
-function ding() {
-  try {
-    const AC = (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext);
-    const ctx = new AC();
-    const now = ctx.currentTime;
-    [880, 660].forEach((freq, i) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sine'; osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0.0001, now + i * 0.18);
-      gain.gain.exponentialRampToValueAtTime(0.25, now + i * 0.18 + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.18 + 0.3);
-      osc.connect(gain).connect(ctx.destination);
-      osc.start(now + i * 0.18); osc.stop(now + i * 0.18 + 0.32);
-    });
-  } catch { /* audio blocked */ }
 }
