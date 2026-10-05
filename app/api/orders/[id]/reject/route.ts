@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer, supabaseAdmin } from '@/lib/supabase-server';
-import { pushLine } from '@/lib/line';
+import { pushLine, lineIdOf, type CustomerJoin } from '@/lib/line';
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -17,9 +17,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const lineId = (order as { customers: { line_user_id: string } | null } | null)?.customers?.line_user_id;
   const push = await pushLine(
-    lineId,
+    lineIdOf((order as { customers: CustomerJoin } | null)?.customers),
     `❌ Your Mr. Big Belly order was declined.\nReason: ${reason}\n\nIf you were charged we will refund you here on LINE.`,
   );
   return NextResponse.json({ ok: true, push });

@@ -4,6 +4,21 @@ const ENDPOINT = 'https://api.line.me/v2/bot/message/push';
 
 export type PushResult = { ok: true } | { ok: false; reason: string };
 
+export type CustomerJoin =
+  | { line_user_id: string | null }
+  | { line_user_id: string | null }[]
+  | null
+  | undefined;
+
+// PostgREST returns an embedded to-one row as an object, but hands back an
+// array whenever it cannot prove the relationship is to-one. Reading it as an
+// object either way turns a perfectly good LINE id into undefined, and the
+// order then looks to us like it has no customer at all.
+export function lineIdOf(customers: CustomerJoin): string | null {
+  const c = Array.isArray(customers) ? customers[0] : customers;
+  return c?.line_user_id ?? null;
+}
+
 /** Deep link that reopens the order inside LINE, when the LIFF id is configured. */
 export function orderLink(orderId: string): string | null {
   const liffId = process.env.LINE_LIFF_ID;

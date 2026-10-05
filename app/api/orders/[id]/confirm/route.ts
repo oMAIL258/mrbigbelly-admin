@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer, supabaseAdmin } from '@/lib/supabase-server';
-import { pushLine, orderLink } from '@/lib/line';
+import { pushLine, orderLink, lineIdOf, type CustomerJoin } from '@/lib/line';
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -17,13 +17,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const row = order as { fulfilment_mode: 'pickup' | 'delivery'; customers: { line_user_id: string } | null };
+  const row = order as { fulfilment_mode: 'pickup' | 'delivery'; customers: CustomerJoin };
   const tail = row.fulfilment_mode === 'pickup'
     ? `Ready for pickup in about ${prep_minutes} minutes.`
     : `We'll have it with you in about ${prep_minutes} minutes.`;
   const link = orderLink(id);
   const push = await pushLine(
-    row.customers?.line_user_id,
+    lineIdOf(row.customers),
     `👨‍🍳 Payment received — we're preparing your Mr. Big Belly order.\n${tail}${link ? `\n\nFollow your order: ${link}` : ''}`,
   );
 

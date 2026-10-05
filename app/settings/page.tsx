@@ -3,6 +3,14 @@ import { useEffect, useState } from 'react';
 import { supabaseBrowser } from '@/lib/supabase-browser';
 import { Nav } from '@/components/Nav';
 
+type Health = {
+  tokenOk: boolean;
+  detail: string;
+  liffId: string | null;
+  bot: { displayName: string; basicId: string } | null;
+  recent: { total: number; withLine: number };
+};
+
 type Settings = {
   id: string;
   open_time: string;
@@ -17,6 +25,8 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [health, setHealth] = useState<Health | null>(null);
+  const [checking, setChecking] = useState(true);
 
   useEffect(() => {
     (async () => {
@@ -25,6 +35,16 @@ export default function SettingsPage() {
       if (data) setS(data as Settings);
     })();
   }, []);
+
+  async function checkLine() {
+    setChecking(true);
+    try {
+      const res = await fetch('/api/line/health', { cache: 'no-store' });
+      setHealth(res.ok ? await res.json() : null);
+    } catch { setHealth(null); }
+    setChecking(false);
+  }
+  useEffect(() => { checkLine(); }, []);
 
   async function save(patch?: Partial<Settings>) {
     if (!s) return;
@@ -101,6 +121,48 @@ export default function SettingsPage() {
           <button onClick={() => save()} disabled={saving} className="btn-primary">
             {saving ? 'Saving…' : 'Save'}
           </button>
+        </section>
+
+        <section className={`card p-4 ${health && !health.tokenOk ? 'border-accent' : ''}`}>
+          <div className="flex items-baseline justify-between">
+            <h2 className="serif text-base">LINE messages</h2>
+            <button onClick={checkLine} disabled={checking} className="text-ink-3 text-xs underline">
+              {checking ? 'Checking…' : 'Check again'}
+            </button>
+          </div>
+
+          {checking && !health && <p className="text-ink-3 text-sm mt-2">Checking…</p>}
+
+          {health && (
+            <div className="mt-2 space-y-2 text-sm">
+              <div className="flex gap-2">
+                <span className={health.tokenOk ? 'text-veg' : 'text-accent'}>{health.tokenOk ? '✓' : '✕'}</span>
+                <span>{health.detail}</span>
+              </div>
+              <div className="flex gap-2">
+                <span className={health.liffId ? 'text-veg' : 'text-accent'}>{health.liffId ? '✓' : '✕'}</span>
+                <span>
+                  {health.liffId
+                    ? <>Order links point at LIFF app <code className="text-xs">{health.liffId}</code>.</>
+                    : 'LINE_LIFF_ID is not set, so messages go out without a link back to the order.'}
+                </span>
+              </div>
+              <div className="flex gap-2">
+                <span className={health.recent.withLine ? 'text-veg' : 'text-accent'}>
+                  {health.recent.withLine ? '✓' : '✕'}
+                </span>
+                <span>
+                  {health.recent.withLine} of the last {health.recent.total} orders have a LINE contact.
+                  {health.recent.withLine === 0 && health.recent.total > 0 &&
+                    ' Nobody can be messaged until customers order from inside LINE.'}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {!health && !checking && (
+            <p className="text-ink-3 text-sm mt-2">The check could not run. Try again in a moment.</p>
+          )}
         </section>
 
         {msg && <div className="text-sm text-ink-3">{msg}</div>}
