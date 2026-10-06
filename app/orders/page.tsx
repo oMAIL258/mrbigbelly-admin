@@ -6,6 +6,7 @@ import { baht } from '@/lib/money';
 import { Nav } from '@/components/Nav';
 import { alarm, unlockAudio, askNotifyPermission, notify } from '@/lib/alarm';
 import { dayKey, todayKey, dayBounds, shiftDay, dayLabel, shopTime } from '@/lib/day';
+import { useLang } from '@/lib/i18n';
 
 type Order = {
   id: string;
@@ -17,13 +18,6 @@ type Order = {
   created_at: string;
 };
 
-const COLS: { key: Order['status']; label: string }[] = [
-  { key: 'new', label: 'New' },
-  { key: 'confirmed', label: 'Preparing' },
-  { key: 'ready', label: 'Ready' },
-  { key: 'done', label: 'Done' },
-];
-
 const SELECT = 'id, short_code, status, total_satang, fulfilment_mode, prep_minutes, created_at';
 
 export default function OrderBoardPage() {
@@ -32,8 +26,16 @@ export default function OrderBoardPage() {
   const [stale, setStale] = useState<{ count: number; oldest: string } | null>(null);
   const [bellOn, setBellOn] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const { lang, t } = useLang();
 
   const isToday = day === todayKey();
+  const label = (key: string) => dayLabel(key, lang, t);
+  const cols: { key: Order['status']; label: string }[] = [
+    { key: 'new', label: t.stNew },
+    { key: 'confirmed', label: t.stConfirmed },
+    { key: 'ready', label: t.stReady },
+    { key: 'done', label: t.stDone },
+  ];
 
   const load = useCallback(async () => {
     const sb = supabaseBrowser();
@@ -72,7 +74,7 @@ export default function OrderBoardPage() {
         // inside yesterday's board.
         if (!row?.created_at || dayKey(row.created_at) !== day) return;
         if (payload.eventType === 'INSERT') {
-          notify('New order', `${row.short_code ?? 'Order'} · ${row.fulfilment_mode === 'pickup' ? 'Pickup' : 'Delivery'}`);
+          notify(t.newOrder, `${row.short_code ?? ''} · ${row.fulfilment_mode === 'pickup' ? t.pickup : t.delivery}`.trim());
           setOrders((cur) => [row, ...cur]);
           return;
         }
@@ -84,7 +86,7 @@ export default function OrderBoardPage() {
       })
       .subscribe();
     return () => { sb.removeChannel(ch); };
-  }, [day]);
+  }, [day, t]);
 
   const newCount = orders.filter((o) => o.status === 'new').length;
 
@@ -93,8 +95,8 @@ export default function OrderBoardPage() {
   useEffect(() => {
     if (!bellOn || !isToday || newCount === 0) return;
     alarm();
-    const t = setInterval(alarm, 8000);
-    return () => clearInterval(t);
+    const timer = setInterval(alarm, 8000);
+    return () => clearInterval(timer);
   }, [bellOn, isToday, newCount]);
 
   useEffect(() => {
@@ -102,12 +104,12 @@ export default function OrderBoardPage() {
     let on = false;
     const flash = () => {
       on = !on;
-      document.title = on ? `🔔 ${newCount} NEW ORDER${newCount > 1 ? 'S' : ''}` : 'Mr. Big Belly · Admin';
+      document.title = on ? t.newOrderCount(newCount) : 'Mr. Big Belly · Admin';
     };
     flash();
-    const t = setInterval(flash, 900);
-    return () => { clearInterval(t); document.title = 'Mr. Big Belly · Admin'; };
-  }, [newCount, isToday]);
+    const timer = setInterval(flash, 900);
+    return () => { clearInterval(timer); document.title = 'Mr. Big Belly · Admin'; };
+  }, [newCount, isToday, t]);
 
   useEffect(() => {
     const unlock = () => { unlockAudio(); void askNotifyPermission(); };
@@ -121,26 +123,26 @@ export default function OrderBoardPage() {
       <main className="mx-auto max-w-5xl p-4">
         <div className="flex items-center justify-between mb-3 gap-3 flex-wrap">
           <h1 className="serif text-xl">
-            Order board
+            {t.orderBoard}
             {isToday && newCount > 0 && (
               <span className="ml-2 rounded-full bg-accent text-white text-sm px-2 py-0.5 align-middle">
-                {newCount} waiting
+                {t.waitingCount(newCount)}
               </span>
             )}
           </h1>
           <div className="flex gap-2">
             <button onClick={() => { unlockAudio(); void askNotifyPermission(); alarm(); }} className="btn-outline">
-              Test alarm
+              {t.testAlarm}
             </button>
             <button onClick={() => { unlockAudio(); setBellOn((v) => !v); }} className="btn-outline">
-              {bellOn ? '🔔 Sound on' : '🔕 Sound off'}
+              {bellOn ? t.soundOn : t.soundOff}
             </button>
           </div>
         </div>
 
         <div className="flex items-center justify-center gap-3 mb-3">
           <button onClick={() => setDay((d) => shiftDay(d, -1))} className="btn-outline px-3 py-1">‹</button>
-          <span className="serif text-base w-44 text-center">{dayLabel(day)}</span>
+          <span className="serif text-base w-44 text-center">{label(day)}</span>
           <button
             onClick={() => setDay((d) => shiftDay(d, 1))}
             disabled={isToday}
@@ -150,7 +152,7 @@ export default function OrderBoardPage() {
           </button>
           {!isToday && (
             <button onClick={() => setDay(todayKey())} className="text-accent text-sm underline">
-              Back to today
+              {t.backToToday}
             </button>
           )}
         </div>
@@ -160,22 +162,20 @@ export default function OrderBoardPage() {
             onClick={() => setDay(stale.oldest)}
             className="card border-accent p-3 mb-3 w-full text-left text-sm hover:opacity-80"
           >
-            <strong className="text-accent">
-              {stale.count} order{stale.count > 1 ? 's' : ''} from earlier days {stale.count > 1 ? 'are' : 'is'} still open.
-            </strong>
-            <span className="text-ink-2"> Tap to go to {dayLabel(stale.oldest)} and finish {stale.count > 1 ? 'them' : 'it'}.</span>
+            <strong className="text-accent">{t.staleOpen(stale.count)}</strong>
+            <span className="text-ink-2">{t.staleGo(label(stale.oldest))}</span>
           </button>
         )}
 
         {loadError && (
           <div className="card border-accent p-3 mb-3 text-sm">
-            <strong className="text-accent">Could not load orders.</strong>
+            <strong className="text-accent">{t.loadFailed}</strong>
             <div className="text-ink-2 mt-1">{loadError}</div>
           </div>
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-          {COLS.map((c) => {
+          {cols.map((c) => {
             const col = orders.filter((o) => o.status === c.key);
             return (
               <div key={c.key} className="rounded-2xl bg-surface-2 p-2 min-h-[200px]">
@@ -192,11 +192,11 @@ export default function OrderBoardPage() {
                           <span className="text-xs text-ink-3">{shopTime(o.created_at)}</span>
                         </div>
                         <div className="text-sm mt-1 flex justify-between">
-                          <span>{o.fulfilment_mode === 'pickup' ? 'Pickup' : 'Delivery'}</span>
+                          <span>{o.fulfilment_mode === 'pickup' ? t.pickup : t.delivery}</span>
                           <span className="font-medium">{baht(o.total_satang)}</span>
                         </div>
                         {o.status === 'confirmed' && o.prep_minutes && (
-                          <div className="text-xs text-ink-3 mt-1">Ready in {o.prep_minutes} min</div>
+                          <div className="text-xs text-ink-3 mt-1">{t.readyIn(o.prep_minutes)}</div>
                         )}
                       </Link>
                     </li>
@@ -209,8 +209,8 @@ export default function OrderBoardPage() {
         </div>
 
         <p className="text-ink-3 text-xs text-center mt-4">
-          This board shows one day at a time. <Link href="/reports" className="underline">Reports</Link> has
-          the calendar, takings and what sold.
+          {t.boardFoot} <Link href="/reports" className="underline">{t.boardFootLink}</Link>
+          {t.boardFootTail}
         </p>
       </main>
     </>

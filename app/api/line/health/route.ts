@@ -4,6 +4,12 @@ import { lineIdOf, type CustomerJoin } from '@/lib/line';
 
 export const dynamic = 'force-dynamic';
 
+type TokenState =
+  | { code: 'missing' }
+  | { code: 'ok'; name: string }
+  | { code: 'rejected'; status: number; body: string }
+  | { code: 'unreachable'; message: string };
+
 // Checks the LINE setup end to end rather than just asking whether the
 // variables exist: a token that is present but revoked, or issued against the
 // wrong channel, fails here exactly as it would on a real status message.
@@ -17,10 +23,12 @@ export async function GET() {
 
   let bot: { displayName: string; basicId: string; userId: string } | null = null;
   let tokenOk = false;
-  let detail: string;
+  // A state the page can word itself, rather than a sentence in one language:
+  // the shop may be reading the admin in Thai or in English.
+  let token_state: TokenState;
 
   if (!token) {
-    detail = 'LINE_CHANNEL_ACCESS_TOKEN is not set on this site.';
+    token_state = { code: 'missing' };
   } else {
     try {
       const res = await fetch('https://api.line.me/v2/bot/info', {
@@ -30,13 +38,13 @@ export async function GET() {
       if (res.ok) {
         bot = await res.json();
         tokenOk = true;
-        detail = `Connected to ${bot?.displayName ?? 'the official account'}.`;
+        token_state = { code: 'ok', name: bot?.displayName ?? 'the official account' };
       } else {
         const body = await res.text().catch(() => '');
-        detail = `LINE rejected the token (${res.status}). ${body.slice(0, 200)}`;
+        token_state = { code: 'rejected', status: res.status, body: body.slice(0, 200) };
       }
     } catch (e) {
-      detail = `Could not reach LINE: ${(e as Error).message}`;
+      token_state = { code: 'unreachable', message: (e as Error).message };
     }
   }
 
@@ -66,7 +74,7 @@ export async function GET() {
 
   return NextResponse.json({
     tokenOk,
-    detail,
+    token: token_state,
     liffId,
     bot,
     recent: { total: rows.length, withLine },

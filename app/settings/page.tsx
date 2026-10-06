@@ -2,10 +2,17 @@
 import { useEffect, useState } from 'react';
 import { supabaseBrowser } from '@/lib/supabase-browser';
 import { Nav } from '@/components/Nav';
+import { useLang } from '@/lib/i18n';
+
+type TokenState =
+  | { code: 'missing' }
+  | { code: 'ok'; name: string }
+  | { code: 'rejected'; status: number; body: string }
+  | { code: 'unreachable'; message: string };
 
 type Health = {
   tokenOk: boolean;
-  detail: string;
+  token: TokenState;
   liffId: string | null;
   bot: { displayName: string; basicId: string } | null;
   recent: { total: number; withLine: number };
@@ -32,6 +39,13 @@ export default function SettingsPage() {
   const [checking, setChecking] = useState(true);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [alerted, setAlerted] = useState<Set<string>>(new Set());
+  const { t } = useLang();
+
+  const tokenText = (state: TokenState) =>
+    state.code === 'ok' ? t.botConnected(state.name)
+    : state.code === 'missing' ? t.tokenMissing
+    : state.code === 'rejected' ? t.tokenRejected(state.status, state.body)
+    : t.lineUnreachable(state.message);
 
   useEffect(() => {
     (async () => {
@@ -90,40 +104,37 @@ export default function SettingsPage() {
       closed_message: next.closed_message,
     }).eq('id', next.id);
     setSaving(false);
-    if (error) setErr(error.message); else setMsg('Saved.');
+    if (error) setErr(error.message); else setMsg(t.saved);
   }
 
   if (err && !s) return <><Nav /><main className="p-6 text-accent text-sm">{err}</main></>;
-  if (!s) return <><Nav /><main className="p-6 text-ink-3">Loading…</main></>;
+  if (!s) return <><Nav /><main className="p-6 text-ink-3">{t.loading}</main></>;
 
   return (
     <>
       <Nav />
       <main className="mx-auto max-w-xl p-4 space-y-4">
-        <h1 className="serif text-xl">Settings</h1>
+        <h1 className="serif text-xl">{t.settings}</h1>
 
         <section className={`card p-4 ${s.accepting_orders ? '' : 'border-accent'}`}>
-          <h2 className="serif text-base">Taking orders</h2>
-          <p className="text-ink-3 text-sm mt-1">
-            Switch this off for a holiday or when you close early. Customers still see the menu, but
-            cannot place an order until you switch it back on.
-          </p>
+          <h2 className="serif text-base">{t.takingOrders}</h2>
+          <p className="text-ink-3 text-sm mt-1">{t.takingOrdersNote}</p>
           <button
             onClick={() => save({ accepting_orders: !s.accepting_orders })}
             disabled={saving}
             className={`mt-3 ${s.accepting_orders ? 'btn-outline' : 'btn-primary'}`}
           >
-            {s.accepting_orders ? 'Open — tap to close the shop' : 'Closed — tap to reopen'}
+            {s.accepting_orders ? t.openTapToClose : t.closedTapToOpen}
           </button>
 
           {!s.accepting_orders && (
             <div className="mt-3">
-              <label className="text-sm text-ink-2">Message customers see</label>
+              <label className="text-sm text-ink-2">{t.closedMessageLabel}</label>
               <input
                 value={s.closed_message ?? ''}
                 onChange={(e) => setS({ ...s, closed_message: e.target.value })}
                 onBlur={() => save()}
-                placeholder="Closed for Songkran — back on 16 April"
+                placeholder={t.closedMessageHint}
                 className="mt-1 w-full rounded-xl border border-rule p-2 text-sm"
               />
             </div>
@@ -131,41 +142,35 @@ export default function SettingsPage() {
         </section>
 
         <section className="card p-4 space-y-3">
-          <h2 className="serif text-base">Hours and timing</h2>
+          <h2 className="serif text-base">{t.hours}</h2>
           <div className="grid grid-cols-2 gap-2">
             <label className="text-sm">
-              Open
+              {t.openTime}
               <input type="time" value={s.open_time.slice(0, 5)} onChange={(e) => setS({ ...s, open_time: e.target.value + ':00' })}
                 className="mt-1 w-full rounded-xl border border-rule p-2 text-sm" />
             </label>
             <label className="text-sm">
-              Close
+              {t.closeTime}
               <input type="time" value={s.close_time.slice(0, 5)} onChange={(e) => setS({ ...s, close_time: e.target.value + ':00' })}
                 className="mt-1 w-full rounded-xl border border-rule p-2 text-sm" />
             </label>
           </div>
           <label className="text-sm block">
-            Default prep time (minutes)
+            {t.defaultPrep}
             <input type="number" value={s.default_prep_minutes}
               onChange={(e) => setS({ ...s, default_prep_minutes: Number(e.target.value) || 15 })}
               className="mt-1 w-full rounded-xl border border-rule p-2 text-sm" />
           </label>
           <button onClick={() => save()} disabled={saving} className="btn-primary">
-            {saving ? 'Saving…' : 'Save'}
+            {saving ? t.saving : t.save}
           </button>
         </section>
 
         <section className="card p-4">
-          <h2 className="serif text-base">Who gets told about new orders</h2>
-          <p className="text-ink-3 text-sm mt-1">
-            Anyone ticked here gets a LINE message the moment an order comes in, so you still
-            hear about it with the order board closed. Tick your own name. Names appear here
-            once someone has ordered through LINE.
-          </p>
+          <h2 className="serif text-base">{t.whoGetsTold}</h2>
+          <p className="text-ink-3 text-sm mt-1">{t.whoGetsToldNote}</p>
           {contacts.length === 0 ? (
-            <p className="text-ink-3 text-sm mt-3">
-              Nobody has ordered through LINE yet, so there is nobody to pick.
-            </p>
+            <p className="text-ink-3 text-sm mt-3">{t.nobodyYet}</p>
           ) : (
             <ul className="mt-3 divide-y divide-rule">
               {contacts.map((c) => (
@@ -178,7 +183,7 @@ export default function SettingsPage() {
                     className="h-4 w-4 accent-accent"
                   />
                   <label htmlFor={c.line_user_id} className="text-sm flex-1 cursor-pointer">
-                    {c.display_name ?? 'LINE customer'}
+                    {c.display_name ?? t.lineCustomer}
                   </label>
                 </li>
               ))}
@@ -188,26 +193,24 @@ export default function SettingsPage() {
 
         <section className={`card p-4 ${health && !health.tokenOk ? 'border-accent' : ''}`}>
           <div className="flex items-baseline justify-between">
-            <h2 className="serif text-base">LINE messages</h2>
+            <h2 className="serif text-base">{t.lineMessages}</h2>
             <button onClick={checkLine} disabled={checking} className="text-ink-3 text-xs underline">
-              {checking ? 'Checking…' : 'Check again'}
+              {checking ? t.checking : t.checkAgain}
             </button>
           </div>
 
-          {checking && !health && <p className="text-ink-3 text-sm mt-2">Checking…</p>}
+          {checking && !health && <p className="text-ink-3 text-sm mt-2">{t.checking}</p>}
 
           {health && (
             <div className="mt-2 space-y-2 text-sm">
               <div className="flex gap-2">
                 <span className={health.tokenOk ? 'text-veg' : 'text-accent'}>{health.tokenOk ? '✓' : '✕'}</span>
-                <span>{health.detail}</span>
+                <span>{tokenText(health.token)}</span>
               </div>
               <div className="flex gap-2">
                 <span className={health.liffId ? 'text-veg' : 'text-accent'}>{health.liffId ? '✓' : '✕'}</span>
                 <span>
-                  {health.liffId
-                    ? <>Order links point at LIFF app <code className="text-xs">{health.liffId}</code>.</>
-                    : 'LINE_LIFF_ID is not set, so messages go out without a link back to the order.'}
+                  {health.liffId ? t.liffSet(health.liffId) : t.liffMissing}
                 </span>
               </div>
               <div className="flex gap-2">
@@ -216,10 +219,8 @@ export default function SettingsPage() {
                 </span>
                 <span>
                   {health.customer?.lineToken
-                    ? 'New orders alert the people ticked above.'
-                    : health.customer?.reachable
-                      ? 'The ordering site has no LINE token, so a new order cannot alert anyone. Add LINE_CHANNEL_ACCESS_TOKEN to the mrbigbelly-order site on Netlify and redeploy it.'
-                      : 'Could not reach the ordering site to check whether it can send order alerts.'}
+                    ? t.alertsOn
+                    : health.customer?.reachable ? t.alertsNoToken : t.alertsUnreachable}
                 </span>
               </div>
               <div className="flex gap-2">
@@ -227,16 +228,15 @@ export default function SettingsPage() {
                   {health.recent.withLine ? '✓' : '✕'}
                 </span>
                 <span>
-                  {health.recent.withLine} of the last {health.recent.total} orders have a LINE contact.
-                  {health.recent.withLine === 0 && health.recent.total > 0 &&
-                    ' Nobody can be messaged until customers order from inside LINE.'}
+                  {t.withLine(health.recent.withLine, health.recent.total)}
+                  {health.recent.withLine === 0 && health.recent.total > 0 && t.noneWithLine}
                 </span>
               </div>
             </div>
           )}
 
           {!health && !checking && (
-            <p className="text-ink-3 text-sm mt-2">The check could not run. Try again in a moment.</p>
+            <p className="text-ink-3 text-sm mt-2">{t.checkFailed}</p>
           )}
         </section>
 

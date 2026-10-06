@@ -20,11 +20,13 @@ export function shiftDay(key: string, by: number) {
   return new Date(Date.UTC(y, m - 1, d + by)).toISOString().slice(0, 10);
 }
 
-export function dayLabel(key: string) {
-  if (key === todayKey()) return 'Today';
-  if (key === shiftDay(todayKey(), -1)) return 'Yesterday';
+/** 'วันนี้' / 'Yesterday' / 'อา. 5 ต.ค.', in whichever language is on. The two
+ *  words that are not a date come from the caller's dictionary. */
+export function dayLabel(key: string, lang: 'th' | 'en' = 'en', words?: { today: string; yesterday: string }) {
+  if (key === todayKey()) return words?.today ?? 'Today';
+  if (key === shiftDay(todayKey(), -1)) return words?.yesterday ?? 'Yesterday';
   const [y, m, d] = key.split('-').map(Number);
-  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('en-GB', {
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString(lang === 'th' ? 'th-TH' : 'en-GB', {
     weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC',
   });
 }

@@ -5,6 +5,7 @@ import { supabaseBrowser } from '@/lib/supabase-browser';
 import { baht } from '@/lib/money';
 import { Nav } from '@/components/Nav';
 import { TZ, dayKey, todayKey } from '@/lib/day';
+import { useLang, statusLabel } from '@/lib/i18n';
 
 // Revenue only counts orders the shop actually accepted. 'new' is unverified
 // and 'rejected' was never earned, so including either would overstate takings.
@@ -37,6 +38,8 @@ export default function ReportsPage() {
   const [selected, setSelected] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { lang, t } = useLang();
+  const locale = lang === 'th' ? 'th-TH' : 'en-GB';
 
   useEffect(() => {
     let cancelled = false;
@@ -117,7 +120,8 @@ export default function ReportsPage() {
   const first = new Date(Date.UTC(year, month, 1));
   const pad = first.getUTCDay();
   const days = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
-  const label = first.toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+  // Thai names the year in the Buddhist era, which is what the shop expects.
+  const label = first.toLocaleDateString(locale, { month: 'long', year: 'numeric', timeZone: 'UTC' });
 
   function shift(by: number) {
     const d = new Date(Date.UTC(year, month + by, 1));
@@ -131,9 +135,9 @@ export default function ReportsPage() {
       <Nav />
       <main className="mx-auto max-w-5xl p-4 space-y-3">
         <div className="grid grid-cols-3 gap-3">
-          <Tile label="Today" value={baht(live.today)} />
-          <Tile label="This week" value={baht(live.week)} />
-          <Tile label="This month" value={baht(live.month)} />
+          <Tile label={t.today} value={baht(live.today)} />
+          <Tile label={t.thisWeek} value={baht(live.week)} />
+          <Tile label={t.thisMonth} value={baht(live.month)} />
         </div>
 
         <section className="card p-4">
@@ -144,12 +148,12 @@ export default function ReportsPage() {
           </div>
 
           {error && <div className="text-accent text-sm mt-3">{error}</div>}
-          {loading && <p className="text-ink-3 text-sm text-center py-8">Loading…</p>}
+          {loading && <p className="text-ink-3 text-sm text-center py-8">{t.loading}</p>}
 
           {!loading && (
             <>
               <div className="grid grid-cols-7 gap-1 mt-4 text-center text-ink-3 text-xs">
-                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => <div key={d}>{d}</div>)}
+                {t.weekdays.map((d) => <div key={d}>{d}</div>)}
               </div>
               <div className="grid grid-cols-7 gap-1 mt-1">
                 {Array.from({ length: pad }).map((_, i) => <div key={`p${i}`} />)}
@@ -171,7 +175,7 @@ export default function ReportsPage() {
                       {d && (
                         <>
                           <div className="text-[11px] font-medium leading-tight mt-0.5">{baht(d.revenue)}</div>
-                          <div className="text-[10px] text-ink-3">{d.count} order{d.count > 1 ? 's' : ''}</div>
+                          <div className="text-[10px] text-ink-3">{t.nOrders(d.count)}</div>
                         </>
                       )}
                     </button>
@@ -180,14 +184,12 @@ export default function ReportsPage() {
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4 pt-4 border-t border-rule">
-                <Tile label="Orders" value={String(earned.length)} small />
-                <Tile label="Revenue" value={baht(revenue)} small />
-                <Tile label="Average order" value={baht(avg)} small />
-                <Tile label="Delivery / pickup" value={`${delivery} / ${earned.length - delivery}`} small />
+                <Tile label={t.orderCount} value={String(earned.length)} small />
+                <Tile label={t.revenue} value={baht(revenue)} small />
+                <Tile label={t.avgOrder} value={baht(avg)} small />
+                <Tile label={t.deliveryPickup} value={`${delivery} / ${earned.length - delivery}`} small />
               </div>
-              <p className="text-ink-3 text-xs mt-2">
-                Counts accepted orders only. Orders still waiting to be confirmed, and rejected ones, are left out.
-              </p>
+              <p className="text-ink-3 text-xs mt-2">{t.earnedNote}</p>
             </>
           )}
         </section>
@@ -195,10 +197,10 @@ export default function ReportsPage() {
         {selected && (
           <section className="card p-4">
             <h2 className="serif text-base mb-2">
-              {new Date(`${selected}T00:00:00`).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
+              {new Date(`${selected}T00:00:00`).toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' })}
             </h2>
             {dayOrders.length === 0 ? (
-              <p className="text-ink-3 text-sm">No orders that day.</p>
+              <p className="text-ink-3 text-sm">{t.noOrdersThatDay}</p>
             ) : (
               <ul className="divide-y divide-rule">
                 {dayOrders.map((o) => (
@@ -209,9 +211,9 @@ export default function ReportsPage() {
                       </span>
                       <span className="flex-1 text-sm">
                         {o.short_code ?? o.id.slice(0, 6)}
-                        <span className="text-ink-3"> · {o.fulfilment_mode}</span>
+                        <span className="text-ink-3"> · {o.fulfilment_mode === 'pickup' ? t.pickup : t.delivery}</span>
                       </span>
-                      <span className="chip text-xs">{o.status}</span>
+                      <span className="chip text-xs">{statusLabel(t, o.status)}</span>
                       <span className="text-sm font-medium w-16 text-right">{baht(o.total_satang)}</span>
                     </Link>
                   </li>
@@ -222,9 +224,9 @@ export default function ReportsPage() {
         )}
 
         <section className="card p-4">
-          <h2 className="serif text-base mb-2">What sold in {label}</h2>
+          <h2 className="serif text-base mb-2">{t.whatSold(label)}</h2>
           {topItems.length === 0 ? (
-            <p className="text-ink-3 text-sm">Nothing sold yet this month.</p>
+            <p className="text-ink-3 text-sm">{t.nothingSold}</p>
           ) : (
             <ul className="divide-y divide-rule">
               {topItems.map(([name, v]) => (

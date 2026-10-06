@@ -3,23 +3,25 @@ import { useEffect, useRef, useState } from 'react';
 import { supabaseBrowser } from '@/lib/supabase-browser';
 import { baht } from '@/lib/money';
 import { Nav } from '@/components/Nav';
+import { useLang, pickName } from '@/lib/i18n';
 
 type Item = {
   id: string; name_en: string; name_th: string | null;
   price_satang: number; is_available: boolean; category_id: string; photo_url: string | null;
 };
-type Cat = { id: string; name_en: string; sort: number };
+type Cat = { id: string; name_en: string; name_th: string | null; sort: number };
 
 export default function MenuAdminPage() {
   const [cats, setCats] = useState<Cat[]>([]);
   const [items, setItems] = useState<Item[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const { lang, t } = useLang();
 
   async function load() {
     const sb = supabaseBrowser();
     const [c, i] = await Promise.all([
-      sb.from('categories').select('id, name_en, sort').order('sort'),
+      sb.from('categories').select('id, name_en, name_th, sort').order('sort'),
       sb.from('menu_items').select('id, name_en, name_th, price_satang, is_available, category_id, photo_url').order('sort'),
     ]);
     if (c.data) setCats(c.data as Cat[]);
@@ -63,10 +65,8 @@ export default function MenuAdminPage() {
     <>
       <Nav />
       <main className="mx-auto max-w-3xl p-4">
-        <h1 className="serif text-xl mb-1">Menu</h1>
-        <p className="text-ink-3 text-sm mb-4">
-          Add a photo to any dish, and switch items off when you run out. Everything is on by default.
-        </p>
+        <h1 className="serif text-xl mb-1">{t.menu}</h1>
+        <p className="text-ink-3 text-sm mb-4">{t.menuNote}</p>
         {err && <div className="card border-accent p-3 mb-3 text-sm text-accent">{err}</div>}
 
         {cats.map((c) => {
@@ -74,7 +74,7 @@ export default function MenuAdminPage() {
           if (list.length === 0) return null;
           return (
             <section key={c.id} className="mb-5">
-              <h2 className="serif text-base mb-2">{c.name_en}</h2>
+              <h2 className="serif text-base mb-2">{pickName(lang, c.name_en, c.name_th)}</h2>
               <ul className="card divide-y divide-rule">
                 {list.map((it) => (
                   <MenuRow
@@ -100,6 +100,7 @@ function MenuRow({ item, busy, onToggle, onUpload, onRemovePhoto }: {
   onToggle: () => void; onUpload: (f: File) => void; onRemovePhoto: () => void;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
+  const { t } = useLang();
   return (
     <li className="p-3 flex items-center gap-3">
       <input
@@ -112,12 +113,12 @@ function MenuRow({ item, busy, onToggle, onUpload, onRemovePhoto }: {
       <button
         onClick={() => fileRef.current?.click()}
         disabled={busy}
-        title={item.photo_url ? 'Replace photo' : 'Add photo'}
+        title={item.photo_url ? t.replacePhoto : t.addPhoto}
         className="h-14 w-14 shrink-0 rounded-xl border border-rule overflow-hidden bg-surface-2 text-ink-3 text-xs"
       >
         {item.photo_url
           ? <img src={item.photo_url} alt="" className="h-full w-full object-cover" />
-          : <span>+ Photo</span>}
+          : <span>{t.addPhotoShort}</span>}
       </button>
 
       <div className="flex-1 min-w-0">
@@ -125,7 +126,7 @@ function MenuRow({ item, busy, onToggle, onUpload, onRemovePhoto }: {
         {item.name_th && <div className="text-ink-3 text-xs truncate">{item.name_th}</div>}
         {item.photo_url && (
           <button onClick={onRemovePhoto} disabled={busy} className="text-ink-3 text-xs underline mt-1">
-            Remove photo
+            {t.removePhoto}
           </button>
         )}
       </div>
@@ -136,7 +137,7 @@ function MenuRow({ item, busy, onToggle, onUpload, onRemovePhoto }: {
         onClick={onToggle}
         className={`btn whitespace-nowrap ${item.is_available ? 'bg-white border border-rule' : 'bg-accent text-white'}`}
       >
-        {busy ? '…' : item.is_available ? 'Available' : 'Sold out'}
+        {busy ? '…' : item.is_available ? t.available : t.soldOut}
       </button>
     </li>
   );
