@@ -4,8 +4,8 @@ import Link from 'next/link';
 import { supabaseBrowser } from '@/lib/supabase-browser';
 import { baht } from '@/lib/money';
 import { Nav } from '@/components/Nav';
+import { TZ, dayKey, todayKey } from '@/lib/day';
 
-const TZ = 'Asia/Bangkok';
 // Revenue only counts orders the shop actually accepted. 'new' is unverified
 // and 'rejected' was never earned, so including either would overstate takings.
 const EARNED = ['confirmed', 'ready', 'done'];
@@ -19,10 +19,6 @@ type Order = {
   created_at: string;
 };
 type Item = { order_id: string; name_snapshot: string; qty: number; line_total_satang: number };
-
-/** Calendar day key in Bangkok time, so a 1am order lands on the right day. */
-const dayKey = (iso: string) => new Date(iso).toLocaleDateString('en-CA', { timeZone: TZ });
-const todayKey = () => new Date().toLocaleDateString('en-CA', { timeZone: TZ });
 
 function monthRange(year: number, month: number) {
   // Bangkok is UTC+7 with no DST, so the local month starts 7h before UTC midnight.

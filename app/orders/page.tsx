@@ -1,10 +1,11 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { supabaseBrowser } from '@/lib/supabase-browser';
 import { baht } from '@/lib/money';
 import { Nav } from '@/components/Nav';
 import { alarm, unlockAudio, askNotifyPermission, notify } from '@/lib/alarm';
+import { dayKey, todayKey, dayBounds, shiftDay, dayLabel, shopTime } from '@/lib/day';
 
 type Order = {
   id: string;
@@ -23,52 +24,81 @@ const COLS: { key: Order['status']; label: string }[] = [
   { key: 'done', label: 'Done' },
 ];
 
+const SELECT = 'id, short_code, status, total_satang, fulfilment_mode, prep_minutes, created_at';
+
 export default function OrderBoardPage() {
+  const [day, setDay] = useState(todayKey());
   const [orders, setOrders] = useState<Order[]>([]);
+  const [stale, setStale] = useState<{ count: number; oldest: string } | null>(null);
   const [bellOn, setBellOn] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
+  const isToday = day === todayKey();
+
+  const load = useCallback(async () => {
+    const sb = supabaseBrowser();
+    const { from, to } = dayBounds(day);
+    const { data, error } = await sb.from('orders').select(SELECT)
+      .gte('created_at', from).lt('created_at', to)
+      .in('status', ['new', 'confirmed', 'ready', 'done'])
+      .order('created_at', { ascending: false });
+    if (error) { setLoadError(error.message); return; }
+    setLoadError(null);
+    setOrders((data ?? []) as Order[]);
+  }, [day]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  // An order left unfinished on an earlier day would simply vanish from a
+  // board that only shows today, so count those and offer a way to them.
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabaseBrowser().from('orders')
+        .select('created_at')
+        .in('status', ['new', 'confirmed', 'ready'])
+        .lt('created_at', dayBounds(todayKey()).from)
+        .order('created_at');
+      const rows = (data ?? []) as { created_at: string }[];
+      setStale(rows.length ? { count: rows.length, oldest: dayKey(rows[0].created_at) } : null);
+    })();
+  }, [orders]);
+
   useEffect(() => {
     const sb = supabaseBrowser();
-    (async () => {
-      const { data, error } = await sb.from('orders')
-        .select('id, short_code, status, total_satang, fulfilment_mode, prep_minutes, created_at')
-        .in('status', ['new', 'confirmed', 'ready', 'done'])
-        .order('created_at', { ascending: false })
-        .limit(100);
-      if (error) { setLoadError(error.message); return; }
-      setOrders((data ?? []) as Order[]);
-    })();
     const ch = sb.channel('orders-board')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => {
-        setOrders((cur) => {
-          if (payload.eventType === 'INSERT') {
-            const o = payload.new as Order;
-            notify('New order', `${o.short_code ?? 'Order'} · ${o.fulfilment_mode === 'pickup' ? 'Pickup' : 'Delivery'}`);
-            return [o, ...cur];
-          }
-          if (payload.eventType === 'UPDATE') return cur.map((o) => o.id === (payload.new as Order).id ? (payload.new as Order) : o);
-          return cur;
-        });
+        const row = payload.new as Order;
+        // Only touch the day being looked at, so a fresh order cannot appear
+        // inside yesterday's board.
+        if (!row?.created_at || dayKey(row.created_at) !== day) return;
+        if (payload.eventType === 'INSERT') {
+          notify('New order', `${row.short_code ?? 'Order'} · ${row.fulfilment_mode === 'pickup' ? 'Pickup' : 'Delivery'}`);
+          setOrders((cur) => [row, ...cur]);
+          return;
+        }
+        if (payload.eventType === 'UPDATE') {
+          setOrders((cur) => cur.some((o) => o.id === row.id)
+            ? cur.map((o) => (o.id === row.id ? row : o))
+            : [row, ...cur]);
+        }
       })
       .subscribe();
     return () => { sb.removeChannel(ch); };
-  }, []);
+  }, [day]);
 
   const newCount = orders.filter((o) => o.status === 'new').length;
 
-  // Keep sounding while anything is still unaccepted, so a new order can't be
-  // missed in a noisy kitchen — not just once on arrival.
+  // Only today's unaccepted orders sound. A board left on an old date must not
+  // sit there chiming at orders that were dealt with days ago.
   useEffect(() => {
-    if (!bellOn || newCount === 0) return;
+    if (!bellOn || !isToday || newCount === 0) return;
     alarm();
     const t = setInterval(alarm, 8000);
     return () => clearInterval(t);
-  }, [bellOn, newCount]);
+  }, [bellOn, isToday, newCount]);
 
-  // The tab is usually behind something else, so say it in the tab title too.
   useEffect(() => {
-    if (newCount === 0) { document.title = 'Mr. Big Belly · Admin'; return; }
+    if (newCount === 0 || !isToday) { document.title = 'Mr. Big Belly · Admin'; return; }
     let on = false;
     const flash = () => {
       on = !on;
@@ -77,9 +107,8 @@ export default function OrderBoardPage() {
     flash();
     const t = setInterval(flash, 900);
     return () => { clearInterval(t); document.title = 'Mr. Big Belly · Admin'; };
-  }, [newCount]);
+  }, [newCount, isToday]);
 
-  // Browsers refuse audio and notifications until the page has seen a click.
   useEffect(() => {
     const unlock = () => { unlockAudio(); void askNotifyPermission(); };
     window.addEventListener('pointerdown', unlock, { once: true });
@@ -90,10 +119,10 @@ export default function OrderBoardPage() {
     <>
       <Nav />
       <main className="mx-auto max-w-5xl p-4">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-3 gap-3 flex-wrap">
           <h1 className="serif text-xl">
             Order board
-            {newCount > 0 && (
+            {isToday && newCount > 0 && (
               <span className="ml-2 rounded-full bg-accent text-white text-sm px-2 py-0.5 align-middle">
                 {newCount} waiting
               </span>
@@ -108,12 +137,43 @@ export default function OrderBoardPage() {
             </button>
           </div>
         </div>
+
+        <div className="flex items-center justify-center gap-3 mb-3">
+          <button onClick={() => setDay((d) => shiftDay(d, -1))} className="btn-outline px-3 py-1">‹</button>
+          <span className="serif text-base w-44 text-center">{dayLabel(day)}</span>
+          <button
+            onClick={() => setDay((d) => shiftDay(d, 1))}
+            disabled={isToday}
+            className="btn-outline px-3 py-1 disabled:opacity-30"
+          >
+            ›
+          </button>
+          {!isToday && (
+            <button onClick={() => setDay(todayKey())} className="text-accent text-sm underline">
+              Back to today
+            </button>
+          )}
+        </div>
+
+        {stale && isToday && (
+          <button
+            onClick={() => setDay(stale.oldest)}
+            className="card border-accent p-3 mb-3 w-full text-left text-sm hover:opacity-80"
+          >
+            <strong className="text-accent">
+              {stale.count} order{stale.count > 1 ? 's' : ''} from earlier days {stale.count > 1 ? 'are' : 'is'} still open.
+            </strong>
+            <span className="text-ink-2"> Tap to go to {dayLabel(stale.oldest)} and finish {stale.count > 1 ? 'them' : 'it'}.</span>
+          </button>
+        )}
+
         {loadError && (
           <div className="card border-accent p-3 mb-3 text-sm">
             <strong className="text-accent">Could not load orders.</strong>
             <div className="text-ink-2 mt-1">{loadError}</div>
           </div>
         )}
+
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
           {COLS.map((c) => {
             const col = orders.filter((o) => o.status === c.key);
@@ -129,7 +189,7 @@ export default function OrderBoardPage() {
                       <Link href={`/orders/${o.id}`} className="card block p-3 hover:border-ink-3">
                         <div className="flex justify-between items-baseline">
                           <span className="serif text-sm">#{o.short_code ?? o.id.slice(0, 6)}</span>
-                          <span className="text-xs text-ink-3">{new Date(o.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
+                          <span className="text-xs text-ink-3">{shopTime(o.created_at)}</span>
                         </div>
                         <div className="text-sm mt-1 flex justify-between">
                           <span>{o.fulfilment_mode === 'pickup' ? 'Pickup' : 'Delivery'}</span>
@@ -147,6 +207,11 @@ export default function OrderBoardPage() {
             );
           })}
         </div>
+
+        <p className="text-ink-3 text-xs text-center mt-4">
+          This board shows one day at a time. <Link href="/reports" className="underline">Reports</Link> has
+          the calendar, takings and what sold.
+        </p>
       </main>
     </>
   );
