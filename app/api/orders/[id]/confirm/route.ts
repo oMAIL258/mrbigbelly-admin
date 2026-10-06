@@ -18,13 +18,20 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   const row = order as { fulfilment_mode: 'pickup' | 'delivery'; customers: CustomerJoin };
-  const tail = row.fulfilment_mode === 'pickup'
-    ? `Ready for pickup in about ${prep_minutes} minutes.`
-    : `We'll have it with you in about ${prep_minutes} minutes.`;
+  const pickup = row.fulfilment_mode === 'pickup';
   const link = orderLink(id);
   const push = await pushLine(
     lineIdOf(row.customers),
-    `👨‍🍳 Payment received — we're preparing your Mr. Big Belly order.\n${tail}${link ? `\n\nFollow your order: ${link}` : ''}`,
+    '👨‍🍳 ได้รับการชำระเงินแล้ว กำลังเตรียมอาหารของคุณ\n'
+    + (pickup
+      ? `พร้อมให้มารับในอีกประมาณ ${prep_minutes} นาที`
+      : `จะไปถึงคุณในอีกประมาณ ${prep_minutes} นาที`)
+    + '\n\n'
+    + "Payment received — we're preparing your Mr. Big Belly order.\n"
+    + (pickup
+      ? `Ready for pickup in about ${prep_minutes} minutes.`
+      : `We'll have it with you in about ${prep_minutes} minutes.`)
+    + (link ? `\n\nติดตามคำสั่งซื้อ / Follow your order: ${link}` : ''),
   );
 
   return NextResponse.json({ ok: true, push });

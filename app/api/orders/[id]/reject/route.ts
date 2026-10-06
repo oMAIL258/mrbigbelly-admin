@@ -19,7 +19,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const push = await pushLine(
     lineIdOf((order as { customers: CustomerJoin } | null)?.customers),
-    `❌ Your Mr. Big Belly order was declined.\nReason: ${reason}\n\nIf you were charged we will refund you here on LINE.`,
+    `❌ คำสั่งซื้อของคุณถูกปฏิเสธ\nเหตุผล: ${reason}\nหากคุณชำระเงินมาแล้ว ทางร้านจะคืนเงินให้ทาง LINE\n\n`
+    + `Your Mr. Big Belly order was declined.\nReason: ${reason}\nIf you were charged we will refund you here on LINE.`,
   );
   return NextResponse.json({ ok: true, push });
 }

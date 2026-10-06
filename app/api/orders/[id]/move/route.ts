@@ -2,15 +2,18 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer, supabaseAdmin } from '@/lib/supabase-server';
 import { pushLine, orderLink, lineIdOf, type CustomerJoin } from '@/lib/line';
 
+// Both languages in every message: the shop cannot know which one a customer
+// reads, and a LINE push is not something they can switch afterwards.
 function message(to: 'ready' | 'done', mode: 'pickup' | 'delivery') {
+  const pickup = mode === 'pickup';
   if (to === 'ready') {
-    return mode === 'pickup'
-      ? '🍴 Your Mr. Big Belly order is ready for pickup!'
-      : '🛵 Your Mr. Big Belly order is on its way to you now.';
+    return pickup
+      ? '🍴 อาหารของคุณพร้อมให้มารับแล้ว\n\nYour Mr. Big Belly order is ready for pickup!'
+      : '🛵 อาหารของคุณกำลังเดินทางไปหาคุณแล้ว\n\nYour Mr. Big Belly order is on its way to you now.';
   }
-  return mode === 'pickup'
-    ? '👍 Thanks for picking up your Mr. Big Belly order. See you next time!'
-    : '✅ Your Mr. Big Belly order has been delivered. Enjoy!';
+  return pickup
+    ? '👍 ขอบคุณที่มารับอาหาร แล้วพบกันใหม่\n\nThanks for picking up your Mr. Big Belly order. See you next time!'
+    : '✅ จัดส่งอาหารเรียบร้อยแล้ว ขอให้อร่อย\n\nYour Mr. Big Belly order has been delivered. Enjoy!';
 }
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -35,7 +38,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const link = to === 'ready' ? orderLink(id) : null;
   const push = await pushLine(
     lineIdOf(row.customers),
-    `${message(to, row.fulfilment_mode)}${link ? `\n\nTrack it: ${link}` : ''}`,
+    `${message(to, row.fulfilment_mode)}${link ? `\n\nติดตามคำสั่งซื้อ / Track it: ${link}` : ''}`,
   );
 
   return NextResponse.json({ ok: true, push });
