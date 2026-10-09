@@ -10,11 +10,14 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
   const { data: order } = await sb.from('orders').select('*').eq('id', id).single();
   if (!order) return <><Nav /><NotFound /></>;
 
-  const [{ data: items }, { data: delivery }, { data: slip }, { data: customer }] = await Promise.all([
+  const [{ data: items }, { data: delivery }, { data: slip }, { data: customer }, { data: voucher }] = await Promise.all([
     sb.from('order_items').select('*').eq('order_id', id).order('created_at'),
     sb.from('delivery_details').select('*').eq('order_id', id).maybeSingle(),
     sb.from('payment_slips').select('*').eq('order_id', id).maybeSingle(),
     order.customer_id ? sb.from('customers').select('*').eq('id', order.customer_id).maybeSingle() : Promise.resolve({ data: null }),
+    order.redemption_id
+      ? sb.from('redemptions').select('reward_title_th, reward_title_en').eq('id', order.redemption_id).maybeSingle()
+      : Promise.resolve({ data: null }),
   ]);
 
   const itemIds = (items ?? []).map((i: { id: string }) => i.id);
@@ -37,6 +40,11 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
     short_code: order.short_code,
     status: order.status,
     created_at: order.created_at,
+    // Older orders predate the column and had nothing taken off them.
+    subtotal_satang: order.subtotal_satang ?? order.total_satang,
+    discount_satang: order.discount_satang ?? 0,
+    discount_title_th: voucher?.reward_title_th ?? null,
+    discount_title_en: voucher?.reward_title_en ?? null,
     total_satang: order.total_satang,
     fulfilment_mode: order.fulfilment_mode,
     prep_minutes: order.prep_minutes,

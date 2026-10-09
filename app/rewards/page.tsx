@@ -10,6 +10,7 @@ type Reward = {
   detail_th: string | null; detail_en: string | null;
   photo_url: string | null;
   points_cost: number;
+  discount_satang: number | null;
   stock: number | null;
   is_active: boolean;
   starts_at: string | null;
@@ -21,7 +22,7 @@ type Draft = Omit<Reward, 'id' | 'sort'> & { id?: string };
 
 const blank: Draft = {
   title_th: '', title_en: '', detail_th: '', detail_en: '',
-  photo_url: null, points_cost: 100, stock: null, is_active: true,
+  photo_url: null, points_cost: 5, discount_satang: 2000, stock: null, is_active: true,
   starts_at: null, ends_at: null,
 };
 
@@ -54,6 +55,10 @@ export default function RewardsAdminPage() {
       detail_en: draft.detail_en?.trim() || null,
       photo_url: draft.photo_url,
       points_cost: Math.max(1, Math.round(draft.points_cost || 1)),
+      // A discount of zero or nothing is a reward to collect, not money off.
+      discount_satang: draft.discount_satang && draft.discount_satang > 0
+        ? Math.round(draft.discount_satang)
+        : null,
       stock: draft.stock === null || Number.isNaN(draft.stock) ? null : Math.max(0, Math.round(draft.stock)),
       is_active: draft.is_active,
       starts_at: draft.starts_at || null,
@@ -131,6 +136,9 @@ export default function RewardsAdminPage() {
                 <span className="block text-ink-3 text-xs truncate">{lang === 'th' ? r.title_en : r.title_th}</span>
                 <span className="block text-xs mt-1">
                   <span className="text-gold font-medium">{t.usePoints(r.points_cost)}</span>
+                  {r.discount_satang ? (
+                    <span className="text-veg font-medium">{' → '}{t.discountOff(r.discount_satang / 100)}</span>
+                  ) : null}
                   <span className="text-ink-3">
                     {' · '}
                     {r.stock === null ? t.unlimited : r.stock === 0 ? t.outOfStock : t.nLeft(r.stock)}
@@ -188,6 +196,26 @@ function RewardForm({ draft, busy, err, onChange, onUpload, onCancel, onSave }: 
       <textarea value={draft.detail_en ?? ''} onChange={(e) => set({ detail_en: e.target.value })}
         placeholder={t.detailEn} rows={2} className="w-full rounded-xl border border-rule p-2 text-sm" />
 
+      <div>
+        <div className="text-sm text-ink-2">{t.rewardKind}</div>
+        <div className="mt-1 flex gap-2">
+          {([true, false] as const).map((isDiscount) => (
+            <button
+              key={String(isDiscount)}
+              onClick={() => set({ discount_satang: isDiscount ? (draft.discount_satang ?? 2000) : null })}
+              className={`rounded-full px-3 py-1.5 text-sm ${
+                Boolean(draft.discount_satang) === isDiscount ? 'bg-accent text-white' : 'btn-outline'
+              }`}
+            >
+              {isDiscount ? t.kindDiscount : t.kindThing}
+            </button>
+          ))}
+        </div>
+        <p className="text-ink-3 text-xs mt-1.5">
+          {draft.discount_satang ? t.kindDiscountNote : t.kindThingNote}
+        </p>
+      </div>
+
       <div className="grid grid-cols-2 gap-2">
         <label className="text-sm">
           {t.pointsCost}
@@ -195,6 +223,14 @@ function RewardForm({ draft, busy, err, onChange, onUpload, onCancel, onSave }: 
             onChange={(e) => set({ points_cost: Number(e.target.value) || 0 })}
             className="mt-1 w-full rounded-xl border border-rule p-2 text-sm" />
         </label>
+        {draft.discount_satang ? (
+          <label className="text-sm">
+            {t.discountBaht}
+            <input type="number" value={Math.round(draft.discount_satang / 100)}
+              onChange={(e) => set({ discount_satang: Math.max(1, Number(e.target.value) || 1) * 100 })}
+              className="mt-1 w-full rounded-xl border border-rule p-2 text-sm" />
+          </label>
+        ) : <span />}
         <label className="text-sm">
           {t.stock}
           <input type="number" value={draft.stock ?? ''} placeholder={t.stockHint}

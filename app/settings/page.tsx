@@ -25,6 +25,7 @@ type Loyalty = {
   id: string;
   satang_per_point: number;
   welcome_points: number;
+  points_valid_months: number;
   points_enabled: boolean;
 };
 
@@ -78,6 +79,7 @@ export default function SettingsPage() {
     const { error } = await supabaseBrowser().from('loyalty_settings').update({
       satang_per_point: next.satang_per_point,
       welcome_points: next.welcome_points,
+      points_valid_months: next.points_valid_months,
       points_enabled: next.points_enabled,
       updated_at: new Date().toISOString(),
     }).eq('id', next.id);
@@ -110,6 +112,17 @@ export default function SettingsPage() {
     } else {
       await sb.from('staff_alerts').delete().eq('line_user_id', c.line_user_id);
     }
+  }
+
+  // Points go stale on a date rather than on an action, so nothing would
+  // notice them running out for a customer who has stopped visiting. Opening
+  // the members list sweeps them, and this does it on demand.
+  async function sweepExpired() {
+    setSaving(true); setMsg(null); setErr(null);
+    const { data, error } = await supabaseBrowser().rpc('expire_points_all');
+    setSaving(false);
+    if (error) setErr(error.message);
+    else setMsg(t.sweepDone(Number(data) || 0));
   }
 
   async function checkLine() {
@@ -233,6 +246,25 @@ export default function SettingsPage() {
                 />
               </label>
             </div>
+
+            <p className="text-ink-2 text-sm">{t.perBaht(Math.round(loyalty.satang_per_point / 100))}</p>
+
+            <label className="text-sm block">
+              {t.validMonths}
+              <input
+                type="number"
+                value={loyalty.points_valid_months}
+                onChange={(e) => setLoyalty({ ...loyalty, points_valid_months: Math.max(0, Number(e.target.value) || 0) })}
+                onBlur={() => saveLoyalty()}
+                className="mt-1 w-full rounded-xl border border-rule p-2 text-sm"
+              />
+              <span className="block text-ink-3 text-xs mt-1">{t.validMonthsHint}</span>
+            </label>
+            <p className="text-ink-3 text-xs">{t.validMonthsLocked}</p>
+
+            <button onClick={sweepExpired} disabled={saving} className="btn-outline">
+              {saving ? t.saving : t.sweepNow}
+            </button>
           </section>
         )}
 

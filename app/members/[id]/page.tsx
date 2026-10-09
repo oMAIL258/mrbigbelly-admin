@@ -27,6 +27,7 @@ type Claim = {
   id: string; code: string | null; status: string; points_cost: number;
   reward_title_th: string; reward_title_en: string; created_at: string;
 };
+type Lot = { remaining: number; expires_at: string | null };
 
 const stamp = (iso: string, lang: Lang, words: { today: string; yesterday: string }) =>
   `${dayLabel(dayKey(iso), lang, words)} ${shopTime(iso)}`;
@@ -43,21 +44,31 @@ export default function MemberPage() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [flash, setFlash] = useState<number | null>(null);
+  const [nextExpiry, setNextExpiry] = useState<Lot | null>(null);
 
   const load = useCallback(async () => {
     const sb = supabaseBrowser();
-    const [m, e, o, r] = await Promise.all([
+    // Nothing happens to a customer's points on the day they run out, so the
+    // balance is brought up to date before it is read rather than shown stale.
+    await sb.rpc('expire_points', { p_customer: id });
+    const [m, e, o, r, lots] = await Promise.all([
       sb.from('customers').select('id, display_name, line_user_id, points_balance, created_at').eq('id', id).maybeSingle(),
       sb.from('point_events').select('*').eq('customer_id', id).order('created_at', { ascending: false }).limit(100),
       sb.from('orders').select('id, short_code, status, total_satang, fulfilment_mode, created_at')
         .eq('customer_id', id).order('created_at', { ascending: false }).limit(50),
       sb.from('redemptions').select('id, code, status, points_cost, reward_title_th, reward_title_en, created_at')
         .eq('customer_id', id).order('created_at', { ascending: false }).limit(50),
+      sb.rpc('point_lots', { p_customer: id }),
     ]);
     setMember((m.data ?? null) as Member | null);
     setEvents((e.data ?? []) as Event[]);
     setOrders((o.data ?? []) as Order[]);
     setClaims((r.data ?? []) as Claim[]);
+    // The soonest the customer loses anything, which is what they ask about.
+    const live = ((lots.data ?? []) as Lot[])
+      .filter((l) => l.remaining > 0 && l.expires_at)
+      .sort((a, b) => (a.expires_at! < b.expires_at! ? -1 : 1));
+    setNextExpiry(live[0] ?? null);
   }, [id]);
 
   useEffect(() => { void load(); }, [load]);
@@ -88,6 +99,7 @@ export default function MemberPage() {
     : k === 'welcome' ? t.keWelcome
     : k === 'redeem' ? t.keRedeem
     : k === 'refund' ? t.keRefund
+    : k === 'expire' ? t.keExpire
     : t.keManual;
 
   const claimLabel = (s: string) =>
@@ -120,6 +132,12 @@ export default function MemberPage() {
               </div>
             </div>
           </div>
+
+          {nextExpiry?.expires_at && (
+            <p className="text-ink-3 text-xs mt-2">
+              {t.expiringSoon(nextExpiry.remaining, dayLabel(dayKey(nextExpiry.expires_at), lang, t))}
+            </p>
+          )}
 
           {flash !== null && (
             <div className="pop mt-3 rounded-xl bg-veg/10 text-veg text-sm px-3 py-2">

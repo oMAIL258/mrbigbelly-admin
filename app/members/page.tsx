@@ -28,6 +28,11 @@ export default function MembersPage() {
   useEffect(() => {
     (async () => {
       const sb = supabaseBrowser();
+      // Points run out on a date, so a customer who has stopped visiting would
+      // still be listed holding them. Opening the list settles everyone first,
+      // which keeps this page and the customer's own screen telling the same
+      // story.
+      await sb.rpc('expire_points_all');
       const [c, o] = await Promise.all([
         sb.from('customers').select('id, display_name, points_balance, created_at')
           .order('points_balance', { ascending: false }).limit(500),

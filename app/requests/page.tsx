@@ -11,6 +11,7 @@ type Claim = {
   code: string | null;
   status: 'pending' | 'approved' | 'rejected' | 'used';
   points_cost: number;
+  discount_satang: number | null;
   reward_title_th: string;
   reward_title_en: string;
   reject_reason: string | null;
@@ -125,6 +126,9 @@ export default function RequestsPage() {
                   {lang === 'th' ? c.reward_title_th : c.reward_title_en}
                 </span>
                 <span className="chip">{label(c.status)}</span>
+                {c.discount_satang ? (
+                  <span className="text-veg text-sm font-medium">{t.discountOff(c.discount_satang / 100)}</span>
+                ) : null}
                 <span className="text-gold text-sm font-medium">−{c.points_cost}</span>
               </div>
 
@@ -159,9 +163,13 @@ export default function RequestsPage() {
               )}
 
               {c.status === 'approved' && (
-                <button disabled={busy === c.id} onClick={() => markUsed(c)} className="btn-outline mt-3 w-full">
-                  {t.markUsed}
-                </button>
+                c.discount_satang
+                  ? <p className="text-ink-3 text-xs mt-2">{t.waitingToBeUsed}</p>
+                  : (
+                    <button disabled={busy === c.id} onClick={() => markUsed(c)} className="btn-outline mt-3 w-full">
+                      {t.markUsed}
+                    </button>
+                  )
               )}
             </li>
           ))}

@@ -19,6 +19,10 @@ export type Detail = {
   short_code: string | null;
   status: string;
   created_at: string;
+  subtotal_satang: number;
+  discount_satang: number;
+  discount_title_th: string | null;
+  discount_title_en: string | null;
   total_satang: number;
   fulfilment_mode: 'pickup' | 'delivery';
   prep_minutes: number | null;
@@ -65,8 +69,20 @@ export function OrderDetail({ order }: { order: Detail }) {
             </li>
           ))}
         </ul>
-        <div className="flex justify-between pt-3 border-t border-rule mt-2 font-medium">
-          <span>{t.total}</span>
+        {order.discount_satang > 0 && (
+          <>
+            <div className="flex justify-between pt-3 border-t border-rule mt-2 text-sm">
+              <span className="text-ink-2">{t.subtotal}</span>
+              <span>{baht(order.subtotal_satang)}</span>
+            </div>
+            <div className="flex justify-between text-sm text-veg">
+              <span>{(lang === 'th' ? order.discount_title_th : order.discount_title_en) ?? t.rewardDiscount}</span>
+              <span>−{baht(order.discount_satang)}</span>
+            </div>
+          </>
+        )}
+        <div className={`flex justify-between font-medium ${order.discount_satang > 0 ? 'mt-1' : 'pt-3 border-t border-rule mt-2'}`}>
+          <span>{order.discount_satang > 0 ? t.paid : t.total}</span>
           <span>{baht(order.total_satang)}</span>
         </div>
       </section>

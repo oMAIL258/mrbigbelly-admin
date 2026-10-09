@@ -7,6 +7,7 @@ type Row = {
   id: string;
   status: string;
   points_cost: number;
+  discount_satang: number | null;
   reward_id: string | null;
   reward_title_th: string;
   reward_title_en: string;
@@ -85,11 +86,24 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .from('customers').select('points_balance').eq('id', row.customer_id).maybeSingle();
   const balance = after?.points_balance ?? 0;
 
+  // A discount is spent by the customer on their next order, not handed over
+  // the counter, so the message says where to find it rather than telling them
+  // to show a code to nobody.
+  const off = row.discount_satang;
+  const approved = off
+    ? `🎉 อนุมัติแล้ว: ${row.reward_title_th}\n`
+      + `ส่วนลด ฿${(off / 100).toLocaleString('en-US')} พร้อมใช้ในออเดอร์ถัดไป\n`
+      + `กดใช้ที่หน้าชำระเงินก่อนโอน แล้วยอดจะลดให้เอง\nแต้มคงเหลือ ${balance} แต้ม\n\n`
+      + `Approved: ${row.reward_title_en}\n`
+      + `฿${(off / 100).toLocaleString('en-US')} is ready for your next order.\n`
+      + `Tap it on the payment screen before you transfer and the amount drops.\nYou have ${balance} points left.`
+    : `🎉 อนุมัติแล้ว: ${row.reward_title_th}\nรหัสรับสิทธิ์ ${code}\nแสดงรหัสนี้ที่ร้านเพื่อรับของรางวัล\nแต้มคงเหลือ ${balance} แต้ม\n\n`
+      + `Approved: ${row.reward_title_en}\nCode ${code} — show it at the counter.\nYou have ${balance} points left.`;
+
   const push = await pushLine(
     lineId(row.customers),
     decision === 'approved'
-      ? `🎉 อนุมัติแล้ว: ${row.reward_title_th}\nรหัสรับสิทธิ์ ${code}\nแสดงรหัสนี้ที่ร้านเพื่อรับของรางวัล\nแต้มคงเหลือ ${balance} แต้ม\n\n`
-        + `Approved: ${row.reward_title_en}\nCode ${code} — show it at the counter.\nYou have ${balance} points left.`
+      ? approved
       : `ขออภัย คำขอใช้สิทธิ์ ${row.reward_title_th} ไม่ได้รับอนุมัติ`
         + `${reason?.trim() ? `\nเหตุผล: ${reason.trim()}` : ''}`
         + `\nคืนแต้มให้แล้ว ${row.points_cost} แต้ม (คงเหลือ ${balance} แต้ม)\n\n`
