@@ -24,9 +24,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const row = order as { fulfilment_mode: 'pickup' | 'delivery'; customers: CustomerJoin };
   const pickup = row.fulfilment_mode === 'pickup';
   const link = orderLink(id);
+  // The points are told to the customer here rather than in a message of their
+  // own, so one notification covers the whole confirmation. A first order can
+  // carry a welcome bonus, which is said out loud: otherwise the balance jumps
+  // by more than the order was worth with nothing to explain it.
+  const welcome = earned && earned.welcome > 0
+    ? { th: `\n🎁 รวมแต้มต้อนรับสมาชิกใหม่ ${earned.welcome} แต้ม`,
+        en: `\n${earned.welcome} of those are a welcome bonus for your first order.` }
+    : { th: '', en: '' };
   const points = earned && earned.total > 0
     ? `\n\n⭐ ได้รับ ${earned.total} แต้ม (รวมทั้งหมด ${earned.balance} แต้ม)`
+      + welcome.th
       + `\nYou earned ${earned.total} points — ${earned.balance} in total.`
+      + welcome.en
     : '';
   const push = await pushLine(
     lineIdOf(row.customers),

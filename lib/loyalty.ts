@@ -1,7 +1,7 @@
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
-export type Earned = { base: number; bonus: number; total: number; balance: number };
+export type Earned = { base: number; bonus: number; welcome: number; total: number; balance: number };
 
 type Admin = SupabaseClient;
 
@@ -55,18 +55,22 @@ export async function awardForOrder(admin: Admin, orderId: string): Promise<Earn
   if (!calc || !calc.enabled) return null;
   const { customerId, base, bonus, welcome } = calc;
 
+  // Only counted as given when the insert actually went through: the unique
+  // index refuses it for anyone who already had their welcome, and the
+  // customer must not be told twice about the same fifty points.
+  let given = 0;
   if (welcome > 0) {
-    // Fails harmlessly on the unique index if this customer already had theirs.
-    await admin.from('point_events').insert({
+    const { error } = await admin.from('point_events').insert({
       customer_id: customerId, delta: welcome, kind: 'welcome', note: 'สมาชิกใหม่ / Welcome',
     });
+    if (!error) given = welcome;
   }
 
-  const total = base + bonus;
-  if (total > 0) {
+  const earn = base + bonus;
+  if (earn > 0) {
     const { error } = await admin.from('point_events').insert({
       customer_id: customerId,
-      delta: total,
+      delta: earn,
       kind: 'earn',
       order_id: orderId,
       note: bonus > 0 ? `ยอดซื้อ ${base} + โบนัส ${bonus}` : null,
@@ -74,11 +78,12 @@ export async function awardForOrder(admin: Admin, orderId: string): Promise<Earn
     // Already credited: report what it was worth without claiming to pay again.
     if (error) {
       const balance = await balanceOf(admin, customerId);
-      return { base, bonus, total: 0, balance };
+      return { base, bonus, welcome: given, total: given, balance };
     }
   }
 
-  return { base, bonus, total, balance: await balanceOf(admin, customerId) };
+  // What the customer gained just now, which is what the message will say.
+  return { base, bonus, welcome: given, total: earn + given, balance: await balanceOf(admin, customerId) };
 }
 
 export async function balanceOf(admin: Admin, customerId: string): Promise<number> {
