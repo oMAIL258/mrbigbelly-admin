@@ -174,3 +174,14 @@ create policy reward_photos_staff_update on storage.objects
 drop policy if exists reward_photos_staff_delete on storage.objects;
 create policy reward_photos_staff_delete on storage.objects
   for delete to authenticated using (bucket_id = 'reward-photos');
+
+-- ─────────────────────────────────────────────────────────────
+-- 7. Live updates, so a request appears on the admin without a refresh
+--    (the same publication the order board already rides on)
+-- ─────────────────────────────────────────────────────────────
+do $$
+begin
+  alter publication supabase_realtime add table redemptions;
+exception
+  when duplicate_object then null;
+end $$;
