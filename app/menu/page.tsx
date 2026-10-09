@@ -8,6 +8,7 @@ import { useLang, pickName } from '@/lib/i18n';
 type Item = {
   id: string; name_en: string; name_th: string | null;
   price_satang: number; is_available: boolean; category_id: string; photo_url: string | null;
+  bonus_points: number;
 };
 type Cat = { id: string; name_en: string; name_th: string | null; sort: number };
 
@@ -22,7 +23,7 @@ export default function MenuAdminPage() {
     const sb = supabaseBrowser();
     const [c, i] = await Promise.all([
       sb.from('categories').select('id, name_en, name_th, sort').order('sort'),
-      sb.from('menu_items').select('id, name_en, name_th, price_satang, is_available, category_id, photo_url').order('sort'),
+      sb.from('menu_items').select('id, name_en, name_th, price_satang, is_available, category_id, photo_url, bonus_points').order('sort'),
     ]);
     if (c.data) setCats(c.data as Cat[]);
     if (i.data) setItems(i.data as Item[]);
@@ -52,6 +53,12 @@ export default function MenuAdminPage() {
       setErr((e as Error).message);
     }
     setBusy(null);
+  }
+
+  async function setBonus(it: Item, bonus_points: number) {
+    setItems((cur) => cur.map((x) => (x.id === it.id ? { ...x, bonus_points } : x)));
+    const { error } = await supabaseBrowser().from('menu_items').update({ bonus_points }).eq('id', it.id);
+    if (error) setErr(error.message);
   }
 
   async function removePhoto(it: Item) {
@@ -84,6 +91,7 @@ export default function MenuAdminPage() {
                     onToggle={() => toggle(it)}
                     onUpload={(f) => uploadPhoto(it, f)}
                     onRemovePhoto={() => removePhoto(it)}
+                    onBonus={(n) => setBonus(it, n)}
                   />
                 ))}
               </ul>
@@ -95,9 +103,10 @@ export default function MenuAdminPage() {
   );
 }
 
-function MenuRow({ item, busy, onToggle, onUpload, onRemovePhoto }: {
+function MenuRow({ item, busy, onToggle, onUpload, onRemovePhoto, onBonus }: {
   item: Item; busy: boolean;
   onToggle: () => void; onUpload: (f: File) => void; onRemovePhoto: () => void;
+  onBonus: (n: number) => void;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const { t } = useLang();
@@ -130,6 +139,18 @@ function MenuRow({ item, busy, onToggle, onUpload, onRemovePhoto }: {
           </button>
         )}
       </div>
+
+      <label className="text-right shrink-0" title={t.bonusHint}>
+        <span className="block text-ink-3 text-[11px]">{t.bonusPoints}</span>
+        <input
+          type="number"
+          value={item.bonus_points ?? 0}
+          onChange={(e) => onBonus(Math.max(0, Number(e.target.value) || 0))}
+          className={`w-16 rounded-xl border p-1 text-sm text-center ${
+            item.bonus_points > 0 ? 'border-gold text-gold font-medium' : 'border-rule'
+          }`}
+        />
+      </label>
 
       <div className="text-sm text-ink-2 whitespace-nowrap">{baht(item.price_satang)}</div>
       <button

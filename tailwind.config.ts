@@ -7,6 +7,7 @@ const config: Config = {
         bg: '#FFFCF7', surface: '#FFFFFF', 'surface-2': '#F2F7FB',
         ink: '#0F2436', 'ink-2': '#3D556B', 'ink-3': '#7A8C9B',
         rule: '#DCE6EF', accent: '#145DA0', 'accent-soft': '#9EC6E6',
+        veg: '#1F8A5B', gold: '#D9A520', warn: '#C2410C',
       },
       fontFamily: {
         serif: ['Fraunces', 'Georgia', 'serif'],

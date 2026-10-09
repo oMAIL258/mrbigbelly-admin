@@ -55,3 +55,22 @@ export function notify(title: string, body: string) {
     }
   } catch { /* unsupported */ }
 }
+
+/** Two soft notes for something that wants attention but not the kitchen's. */
+export function chime() {
+  const c = context();
+  if (!c) return;
+  const now = c.currentTime;
+  [0, 0.16].forEach((t, i) => {
+    const osc = c.createOscillator();
+    const gain = c.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(i ? 1318 : 988, now + t);
+    gain.gain.setValueAtTime(0.0001, now + t);
+    gain.gain.exponentialRampToValueAtTime(0.3, now + t + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + t + 0.35);
+    osc.connect(gain).connect(c.destination);
+    osc.start(now + t);
+    osc.stop(now + t + 0.36);
+  });
+}

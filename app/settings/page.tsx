@@ -21,6 +21,13 @@ type Health = {
 
 type Contact = { line_user_id: string; display_name: string | null };
 
+type Loyalty = {
+  id: string;
+  satang_per_point: number;
+  welcome_points: number;
+  points_enabled: boolean;
+};
+
 type Settings = {
   id: string;
   open_time: string;
@@ -39,6 +46,7 @@ export default function SettingsPage() {
   const [checking, setChecking] = useState(true);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [alerted, setAlerted] = useState<Set<string>>(new Set());
+  const [loyalty, setLoyalty] = useState<Loyalty | null>(null);
   const { t } = useLang();
 
   const tokenText = (state: TokenState) =>
@@ -54,6 +62,28 @@ export default function SettingsPage() {
       if (data) setS(data as Settings);
     })();
   }, []);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabaseBrowser().from('loyalty_settings').select('*').limit(1).maybeSingle();
+      if (data) setLoyalty(data as Loyalty);
+    })();
+  }, []);
+
+  async function saveLoyalty(patch?: Partial<Loyalty>) {
+    if (!loyalty) return;
+    const next = { ...loyalty, ...patch };
+    setLoyalty(next);
+    setSaving(true); setMsg(null); setErr(null);
+    const { error } = await supabaseBrowser().from('loyalty_settings').update({
+      satang_per_point: next.satang_per_point,
+      welcome_points: next.welcome_points,
+      points_enabled: next.points_enabled,
+      updated_at: new Date().toISOString(),
+    }).eq('id', next.id);
+    setSaving(false);
+    if (error) setErr(error.message); else setMsg(t.saved);
+  }
 
   useEffect(() => {
     (async () => {
@@ -165,6 +195,46 @@ export default function SettingsPage() {
             {saving ? t.saving : t.save}
           </button>
         </section>
+
+        {loyalty && (
+          <section className="card p-4 space-y-3">
+            <h2 className="serif text-base">{t.loyaltyTitle}</h2>
+            <p className="text-ink-3 text-sm">{t.loyaltyNote}</p>
+
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={loyalty.points_enabled}
+                onChange={(e) => saveLoyalty({ points_enabled: e.target.checked })}
+                className="h-4 w-4 accent-accent"
+              />
+              {t.pointsEnabled}
+            </label>
+
+            <div className="grid grid-cols-2 gap-2">
+              <label className="text-sm">
+                {t.spendPerPoint}
+                <input
+                  type="number"
+                  value={Math.round(loyalty.satang_per_point / 100)}
+                  onChange={(e) => setLoyalty({ ...loyalty, satang_per_point: Math.max(1, Number(e.target.value) || 1) * 100 })}
+                  onBlur={() => saveLoyalty()}
+                  className="mt-1 w-full rounded-xl border border-rule p-2 text-sm"
+                />
+              </label>
+              <label className="text-sm">
+                {t.welcomePoints}
+                <input
+                  type="number"
+                  value={loyalty.welcome_points}
+                  onChange={(e) => setLoyalty({ ...loyalty, welcome_points: Math.max(0, Number(e.target.value) || 0) })}
+                  onBlur={() => saveLoyalty()}
+                  className="mt-1 w-full rounded-xl border border-rule p-2 text-sm"
+                />
+              </label>
+            </div>
+          </section>
+        )}
 
         <section className="card p-4">
           <h2 className="serif text-base">{t.whoGetsTold}</h2>

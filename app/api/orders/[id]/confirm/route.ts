@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer, supabaseAdmin } from '@/lib/supabase-server';
 import { pushLine, orderLink, lineIdOf, type CustomerJoin } from '@/lib/line';
+import { awardForOrder } from '@/lib/loyalty';
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -17,9 +18,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+  // Payment is verified at this point, so this is where the order earns.
+  const earned = await awardForOrder(admin, id);
+
   const row = order as { fulfilment_mode: 'pickup' | 'delivery'; customers: CustomerJoin };
   const pickup = row.fulfilment_mode === 'pickup';
   const link = orderLink(id);
+  const points = earned && earned.total > 0
+    ? `\n\n⭐ ได้รับ ${earned.total} แต้ม (รวมทั้งหมด ${earned.balance} แต้ม)`
+      + `\nYou earned ${earned.total} points — ${earned.balance} in total.`
+    : '';
   const push = await pushLine(
     lineIdOf(row.customers),
     '👨‍🍳 ได้รับการชำระเงินแล้ว กำลังเตรียมอาหารของคุณ\n'
@@ -31,8 +39,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     + (pickup
       ? `Ready for pickup in about ${prep_minutes} minutes.`
       : `We'll have it with you in about ${prep_minutes} minutes.`)
+    + points
     + (link ? `\n\nติดตามคำสั่งซื้อ / Follow your order: ${link}` : ''),
   );
 
-  return NextResponse.json({ ok: true, push });
+  return NextResponse.json({ ok: true, push, earned });
 }

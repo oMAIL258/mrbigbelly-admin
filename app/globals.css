@@ -9,3 +9,24 @@ h1, h2, h3, .serif { font-family: 'Fraunces', Georgia, serif; }
 .btn-primary { @apply btn bg-accent text-white hover:brightness-110; }
 .btn-outline { @apply btn border border-rule bg-white; }
 .card { @apply rounded-2xl bg-white border border-rule; }
+
+/* Movement, kept short: this is a till, and staff are mid-service. */
+@keyframes mbbRise { from { opacity: 0; transform: translateY(6px) } to { opacity: 1; transform: none } }
+@keyframes mbbPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(217, 165, 32, .55) } 50% { box-shadow: 0 0 0 7px rgba(217, 165, 32, 0) } }
+@keyframes mbbPop { 0% { transform: scale(.94) } 60% { transform: scale(1.03) } 100% { transform: scale(1) } }
+@keyframes mbbSpin { to { transform: rotate(360deg) } }
+.rise { animation: mbbRise .32s ease-out both; }
+.pop { animation: mbbPop .34s ease-out both; }
+.pulse-dot { animation: mbbPulse 1.8s ease-in-out infinite; }
+.spin { animation: mbbSpin .9s linear infinite; }
+.stagger > * { animation: mbbRise .32s ease-out both; }
+.stagger > *:nth-child(2) { animation-delay: .04s }
+.stagger > *:nth-child(3) { animation-delay: .08s }
+.stagger > *:nth-child(4) { animation-delay: .12s }
+.stagger > *:nth-child(5) { animation-delay: .16s }
+.stagger > *:nth-child(n+6) { animation-delay: .2s }
+.chip { @apply inline-flex items-center rounded-full border border-rule bg-surface-2 px-2 py-0.5 text-xs; }
+
+@media (prefers-reduced-motion: reduce) {
+  .rise, .pop, .pulse-dot, .spin, .stagger > * { animation: none; opacity: 1; transform: none }
+}
