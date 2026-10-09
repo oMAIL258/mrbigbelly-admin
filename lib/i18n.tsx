@@ -184,6 +184,8 @@ const TH = {
   subtotal: 'ยอดรวม',
   paid: 'โอนมาแล้ว',
   rewardDiscount: 'ส่วนลดจากแต้ม',
+  paidWithPoints: 'จ่ายด้วยส่วนลดทั้งหมด ไม่ต้องมีสลิป',
+  freeOrder: 'จ่ายด้วยแต้ม',
   waitingToBeUsed: 'ลูกค้ายังไม่ได้ใช้ จะถูกหักเองเมื่อลูกค้ากดใช้ตอนสั่งครั้งถัดไป',
 
   // Rewards
@@ -414,6 +416,8 @@ const EN: typeof TH = {
   subtotal: 'Subtotal',
   paid: 'Transferred',
   rewardDiscount: 'Reward discount',
+  paidWithPoints: 'Covered in full by a reward discount — no transfer, so there is no slip.',
+  freeOrder: 'Paid with points',
   waitingToBeUsed: 'Not used yet. It comes off by itself when the customer taps it on their next order.',
 
   newReward: 'New reward',

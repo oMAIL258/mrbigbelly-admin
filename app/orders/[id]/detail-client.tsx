@@ -111,6 +111,11 @@ export function OrderDetail({ order }: { order: Detail }) {
           <a href={order.slipUrl} target="_blank" rel="noreferrer" className="block">
             <Image src={order.slipUrl} alt="" width={500} height={700} className="rounded-xl border border-rule" unoptimized />
           </a>
+        ) : order.total_satang === 0 ? (
+          // No transfer was asked for, so there is nothing missing here. Saying
+          // "not uploaded" would have the shop waiting for money that is never
+          // coming.
+          <p className="text-veg text-sm">{t.paidWithPoints}</p>
         ) : <p className="text-ink-3 text-sm">{t.notUploaded}</p>}
       </section>
 

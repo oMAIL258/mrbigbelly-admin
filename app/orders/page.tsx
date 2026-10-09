@@ -193,7 +193,11 @@ export default function OrderBoardPage() {
                         </div>
                         <div className="text-sm mt-1 flex justify-between">
                           <span>{o.fulfilment_mode === 'pickup' ? t.pickup : t.delivery}</span>
-                          <span className="font-medium">{baht(o.total_satang)}</span>
+                          {/* A free order has no slip to check, so the board says
+                              so rather than showing a bare ฿0. */}
+                          {o.total_satang === 0
+                            ? <span className="text-veg font-medium text-xs">🎁 {t.freeOrder}</span>
+                            : <span className="font-medium">{baht(o.total_satang)}</span>}
                         </div>
                         {o.status === 'confirmed' && o.prep_minutes && (
                           <div className="text-xs text-ink-3 mt-1">{t.readyIn(o.prep_minutes)}</div>
