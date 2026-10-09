@@ -42,6 +42,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: 'decided', status: row.status }, { status: 409 });
   }
 
+  // Stock is not held back while a request waits, so two customers can both ask
+  // for the last one. The second approval is refused rather than over-issued,
+  // and declining it puts that customer's points back.
+  if (decision === 'approved' && row.reward_id) {
+    const { data: reward } = await admin.from('rewards').select('stock').eq('id', row.reward_id).maybeSingle();
+    if (reward && reward.stock !== null && reward.stock <= 0) {
+      return NextResponse.json({ error: 'out of stock' }, { status: 409 });
+    }
+  }
+
   const code = decision === 'approved' ? (row.code ?? shortCode()) : null;
   const { error } = await admin.from('redemptions').update({
     status: decision,
@@ -53,10 +63,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   if (decision === 'approved') {
-    // The stock was not held back when the request came in, so take one now.
     if (row.reward_id) {
       const { data: reward } = await admin.from('rewards').select('stock').eq('id', row.reward_id).maybeSingle();
-      if (reward?.stock !== null && reward?.stock !== undefined) {
+      if (reward && reward.stock !== null) {
         await admin.from('rewards').update({ stock: Math.max(0, reward.stock - 1) }).eq('id', row.reward_id);
       }
     }

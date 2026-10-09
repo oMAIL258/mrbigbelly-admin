@@ -65,7 +65,9 @@ export default function RequestsPage() {
     setBusy(null);
     if (!res.ok) {
       const body = (await res.json().catch(() => ({}))) as { error?: string };
-      setErr(body.error === 'decided' ? t.alreadyDecided : body.error ?? 'error');
+      setErr(body.error === 'decided' ? t.alreadyDecided
+        : body.error === 'out of stock' ? t.outOfStock
+        : body.error ?? 'error');
       await load();
       return;
     }
