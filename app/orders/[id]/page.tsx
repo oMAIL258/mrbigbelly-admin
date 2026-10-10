@@ -58,6 +58,12 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
         .filter((o) => o.order_item_id === it.id)
         .map(({ group_name, label }) => ({ group_name, label })),
     })),
+    // Asked for at checkout whichever way the order is collected, so the
+    // counter knows whose name to call. Older orders kept them on the
+    // delivery row alone, which the migration copied up but which costs
+    // nothing to fall back on.
+    contact_name: order.contact_name ?? delivery?.contact_name ?? null,
+    contact_phone: order.contact_phone ?? delivery?.contact_phone ?? null,
     delivery: delivery
       ? {
           area_slug: delivery.area_slug,

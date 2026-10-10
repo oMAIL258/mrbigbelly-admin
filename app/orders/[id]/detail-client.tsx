@@ -3,6 +3,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { baht } from '@/lib/money';
 import { useLang, statusLabel } from '@/lib/i18n';
+import { prettyPhone } from '@/lib/phone';
 import { OrderActions } from './actions-client';
 
 export type DetailItem = {
@@ -27,6 +28,8 @@ export type Detail = {
   fulfilment_mode: 'pickup' | 'delivery';
   prep_minutes: number | null;
   items: DetailItem[];
+  contact_name: string | null;
+  contact_phone: string | null;
   delivery: { area_slug: string; address: string; contact_name: string; contact_phone: string } | null;
   slipUrl: string | null;
   customer: { line_user_id: string | null; display_name: string | null } | null;
@@ -95,9 +98,20 @@ export function OrderDetail({ order }: { order: Detail }) {
           <div className="text-sm space-y-1">
             <div>{t.deliverTo} <strong>{AREA_NAMES[order.delivery.area_slug] ?? order.delivery.area_slug}</strong></div>
             <div className="whitespace-pre-wrap">{order.delivery.address}</div>
-            <div className="text-ink-2">{order.delivery.contact_name} · {order.delivery.contact_phone}</div>
           </div>
         ) : <p className="text-ink-3 text-sm">{t.noDeliveryDetails}</p>}
+
+        {(order.contact_name || order.contact_phone) && (
+          <p className="text-sm mt-1">
+            {order.contact_name && <strong>{order.contact_name}</strong>}
+            {order.contact_name && order.contact_phone ? ' · ' : ''}
+            {order.contact_phone && (
+              <a href={`tel:${order.contact_phone}`} className="text-accent underline">
+                {prettyPhone(order.contact_phone)}
+              </a>
+            )}
+          </p>
+        )}
         {order.customer?.line_user_id ? (
           <p className="text-ink-3 text-xs mt-2">{t.lineAuto(order.customer.display_name ?? t.lineLinked)}</p>
         ) : (

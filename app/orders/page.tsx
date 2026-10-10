@@ -14,11 +14,12 @@ type Order = {
   status: 'new' | 'confirmed' | 'ready' | 'done' | 'rejected';
   total_satang: number;
   fulfilment_mode: 'pickup' | 'delivery';
+  contact_name: string | null;
   prep_minutes: number | null;
   created_at: string;
 };
 
-const SELECT = 'id, short_code, status, total_satang, fulfilment_mode, prep_minutes, created_at';
+const SELECT = 'id, short_code, status, total_satang, fulfilment_mode, contact_name, prep_minutes, created_at';
 
 export default function OrderBoardPage() {
   const [day, setDay] = useState(todayKey());
@@ -191,6 +192,9 @@ export default function OrderBoardPage() {
                           <span className="serif text-sm">#{o.short_code ?? o.id.slice(0, 6)}</span>
                           <span className="text-xs text-ink-3">{shopTime(o.created_at)}</span>
                         </div>
+                        {o.contact_name && (
+                          <div className="text-sm mt-0.5 truncate">{o.contact_name}</div>
+                        )}
                         <div className="text-sm mt-1 flex justify-between">
                           <span>{o.fulfilment_mode === 'pickup' ? t.pickup : t.delivery}</span>
                           {/* A free order has no slip to check, so the board says
