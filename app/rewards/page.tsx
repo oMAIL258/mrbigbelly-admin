@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabaseBrowser } from '@/lib/supabase-browser';
 import { Nav } from '@/components/Nav';
 import { useLang } from '@/lib/i18n';
+import { shrinkImage } from '@/lib/shrink';
 
 type Reward = {
   id: string;
@@ -87,9 +88,10 @@ export default function RewardsAdminPage() {
     setBusy(true); setErr(null);
     try {
       const sb = supabaseBrowser();
-      const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+      // Shrunk here rather than sent as it came off the phone; see lib/shrink.
+      const { blob, contentType, ext } = await shrinkImage(file);
       const path = `${draft.id ?? 'new'}/${Date.now()}.${ext}`;
-      const up = await sb.storage.from('reward-photos').upload(path, file, { contentType: file.type, upsert: true });
+      const up = await sb.storage.from('reward-photos').upload(path, blob, { contentType, upsert: true });
       if (up.error) throw up.error;
       const { data } = sb.storage.from('reward-photos').getPublicUrl(up.data.path);
       setDraft({ ...draft, photo_url: data.publicUrl });

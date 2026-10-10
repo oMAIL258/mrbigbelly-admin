@@ -4,6 +4,7 @@ import { supabaseBrowser } from '@/lib/supabase-browser';
 import { baht } from '@/lib/money';
 import { Nav } from '@/components/Nav';
 import { useLang, pickName } from '@/lib/i18n';
+import { shrinkImage } from '@/lib/shrink';
 
 type Item = {
   id: string; name_en: string; name_th: string | null;
@@ -41,9 +42,10 @@ export default function MenuAdminPage() {
     setBusy(it.id); setErr(null);
     try {
       const sb = supabaseBrowser();
-      const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+      // Shrunk here rather than sent as it came off the phone; see lib/shrink.
+      const { blob, contentType, ext } = await shrinkImage(file);
       const path = `${it.id}/${Date.now()}.${ext}`;
-      const up = await sb.storage.from('menu-photos').upload(path, file, { contentType: file.type, upsert: true });
+      const up = await sb.storage.from('menu-photos').upload(path, blob, { contentType, upsert: true });
       if (up.error) throw up.error;
       const { data } = sb.storage.from('menu-photos').getPublicUrl(up.data.path);
       const { error } = await sb.from('menu_items').update({ photo_url: data.publicUrl }).eq('id', it.id);
