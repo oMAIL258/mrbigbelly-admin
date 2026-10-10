@@ -33,15 +33,27 @@ export default function RequestsPage() {
   const [err, setErr] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [q, setQ] = useState('');
+  const [onOrder, setOnOrder] = useState<Map<string, string | null>>(new Map());
   const { lang, t } = useLang();
 
   const load = useCallback(async () => {
-    const { data } = await supabaseBrowser()
-      .from('redemptions')
-      .select('*, customers(display_name)')
-      .order('created_at', { ascending: false })
-      .limit(200);
+    const sb = supabaseBrowser();
+    const [{ data }, { data: spentOnOrders }] = await Promise.all([
+      sb.from('redemptions')
+        .select('*, customers(display_name)')
+        .order('created_at', { ascending: false })
+        .limit(200),
+      // Nothing on the claim says where it went, but an order points back at
+      // the one that paid for it. Anything else that is used was spent at the
+      // counter, which is the distinction the shop needs when somebody asks.
+      sb.from('orders').select('redemption_id, short_code').not('redemption_id', 'is', null).limit(1000),
+    ]);
     setClaims((data ?? []) as unknown as Claim[]);
+    setOnOrder(new Map(
+      ((spentOnOrders ?? []) as { redemption_id: string; short_code: string | null }[])
+        .map((o) => [o.redemption_id, o.short_code]),
+    ));
     setLoading(false);
   }, []);
 
@@ -78,10 +90,22 @@ export default function RequestsPage() {
     await load();
   }
 
+  // Spending a reward cannot be taken back from here, and a discount is money,
+  // so it is asked about first and the customer is told it went.
   async function markUsed(c: Claim) {
-    setBusy(c.id);
-    await fetch(`/api/redemptions/${c.id}/use`, { method: 'POST' });
+    const title = lang === 'th' ? c.reward_title_th : c.reward_title_en;
+    if (!window.confirm(c.discount_satang ? t.confirmUsedInStore(title) : t.confirmCollected(title))) return;
+    setBusy(c.id); setErr(null);
+    const res = await fetch(`/api/redemptions/${c.id}/use`, { method: 'POST' });
     setBusy(null);
+    if (!res.ok) {
+      const body = (await res.json().catch(() => ({}))) as { error?: string };
+      setErr(body.error === 'not approved' ? t.alreadyUsed : body.error ?? 'error');
+      await load();
+      return;
+    }
+    setDone(c.discount_satang ? t.usedInStore : t.stUsed);
+    setTimeout(() => setDone(null), 3000);
     await load();
   }
 
@@ -90,7 +114,13 @@ export default function RequestsPage() {
 
   const pending = claims.filter((c) => c.status === 'pending');
   const rest = claims.filter((c) => c.status !== 'pending');
-  const shown = tab === 'pending' ? pending : rest;
+  // Somebody at the till is reading a code off a customer's phone, so the
+  // search matches the code, the reward and the name without caring about case.
+  const needle = q.trim().toLowerCase();
+  const matches = (c: Claim) => !needle || [
+    c.code, c.reward_title_th, c.reward_title_en, who(c.customers),
+  ].some((v) => v?.toLowerCase().includes(needle));
+  const shown = (tab === 'pending' ? pending : rest).filter(matches);
 
   return (
     <>
@@ -107,6 +137,13 @@ export default function RequestsPage() {
             </button>
           ))}
         </div>
+
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder={t.searchClaims}
+          className="w-full rounded-xl border border-rule p-2 text-sm"
+        />
 
         {done && <div className="pop card border-veg bg-veg/5 text-veg p-3 text-sm">{done}</div>}
         {err && <div className="card border-accent p-3 text-sm text-accent">{err}</div>}
@@ -163,13 +200,22 @@ export default function RequestsPage() {
               )}
 
               {c.status === 'approved' && (
-                c.discount_satang
-                  ? <p className="text-ink-3 text-xs mt-2">{t.waitingToBeUsed}</p>
-                  : (
-                    <button disabled={busy === c.id} onClick={() => markUsed(c)} className="btn-outline mt-3 w-full">
-                      {t.markUsed}
-                    </button>
-                  )
+                <div className="mt-3">
+                  <p className="text-ink-3 text-xs mb-2">
+                    {c.discount_satang ? t.eitherWayNote : t.collectAtCounterNote}
+                  </p>
+                  <button disabled={busy === c.id} onClick={() => markUsed(c)} className="btn-outline w-full">
+                    {busy === c.id ? '…' : c.discount_satang ? t.usedInStore : t.markUsed}
+                  </button>
+                </div>
+              )}
+
+              {c.status === 'used' && (
+                <p className="text-ink-3 text-xs mt-2">
+                  {onOrder.has(c.id)
+                    ? t.spentOnOrder(onOrder.get(c.id) ?? '')
+                    : t.spentInStore}
+                </p>
               )}
             </li>
           ))}

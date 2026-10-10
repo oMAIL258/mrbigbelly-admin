@@ -22,3 +22,5 @@ Prerequisites: the schema (tables `categories`, `menu_items`, `option_groups`, `
    - `point_lots()` and `expire_points()` — the oldest points are always spent first, so what runs out is the oldest thing left. Opening Members, or the button on Settings, settles everybody.
    - `rewards.discount_satang` — a reward that is baht off an order rather than something to collect. The four-step ladder (5 → ฿20, 10 → ฿50, 20 → ฿100, 50 → ฿200) is inserted only if the rewards list is empty, so it will not come back after you edit it.
    - `orders.subtotal_satang`, `orders.discount_satang`, `orders.redemption_id` — what the food came to, what came off, and which claim paid for it. `total_satang` stays the amount the customer transfers, so Reports keeps reading takings and points are earned on what was paid.
+
+6. **`06-discount-wording.sql`** — rewords the four seeded discounts, which still say a voucher has to be smaller than the order. It no longer does: a voucher covers a whole bill, and it can be spent at the counter as well as online. Only rows still carrying the original sentence are touched, so any you have reworded are left alone. No schema change, so it can wait.

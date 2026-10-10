@@ -90,13 +90,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // the counter, so the message says where to find it rather than telling them
   // to show a code to nobody.
   const off = row.discount_satang;
+  const baht = off ? `฿${(off / 100).toLocaleString('en-US')}` : '';
   const approved = off
     ? `🎉 อนุมัติแล้ว: ${row.reward_title_th}\n`
-      + `ส่วนลด ฿${(off / 100).toLocaleString('en-US')} พร้อมใช้ในออเดอร์ถัดไป\n`
-      + `กดใช้ที่หน้าชำระเงินก่อนโอน แล้วยอดจะลดให้เอง\nแต้มคงเหลือ ${balance} แต้ม\n\n`
+      + `ส่วนลด ${baht} ใช้ได้ 2 ทาง\n`
+      + `• สั่งผ่านเว็บ: กดใช้ที่หน้าชำระเงินก่อนโอน ยอดจะลดให้เอง\n`
+      + `• ใช้ที่ร้าน: แสดงรหัส ${code} ให้พนักงาน\n`
+      + `ใช้ได้ครั้งเดียว เลือกทางใดทางหนึ่ง\nแต้มคงเหลือ ${balance} แต้ม\n\n`
       + `Approved: ${row.reward_title_en}\n`
-      + `฿${(off / 100).toLocaleString('en-US')} is ready for your next order.\n`
-      + `Tap it on the payment screen before you transfer and the amount drops.\nYou have ${balance} points left.`
+      + `${baht} off, two ways to use it:\n`
+      + `• Online: tap it on the payment screen before you transfer.\n`
+      + `• In the shop: show code ${code} to the staff.\n`
+      + `One use only, whichever you choose. You have ${balance} points left.`
     : `🎉 อนุมัติแล้ว: ${row.reward_title_th}\nรหัสรับสิทธิ์ ${code}\nแสดงรหัสนี้ที่ร้านเพื่อรับของรางวัล\nแต้มคงเหลือ ${balance} แต้ม\n\n`
       + `Approved: ${row.reward_title_en}\nCode ${code} — show it at the counter.\nYou have ${balance} points left.`;
 

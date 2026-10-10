@@ -36,7 +36,11 @@ export default function MembersPage() {
       const [c, o] = await Promise.all([
         sb.from('customers').select('id, display_name, points_balance, created_at')
           .order('points_balance', { ascending: false }).limit(500),
-        sb.from('orders').select('customer_id, total_satang, created_at, status').limit(5000),
+        // Only the orders that count towards a member's total are wanted, and
+        // the page threw the rest away after downloading them. Rejected and
+        // unconfirmed ones are left on the server instead.
+        sb.from('orders').select('customer_id, total_satang, created_at, status')
+          .in('status', EARNED).limit(5000),
       ]);
       setMembers((c.data ?? []) as Member[]);
       setOrders((o.data ?? []) as OrderRow[]);
