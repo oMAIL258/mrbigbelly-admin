@@ -98,3 +98,83 @@ export function shortCode(): string {
   for (let i = 0; i < 6; i += 1) out += alphabet[Math.floor(Math.random() * alphabet.length)];
   return out;
 }
+
+export type Visit = {
+  visitId: string;
+  /** Points the amount was worth. */
+  points: number;
+  /** Welcome points, if this was the customer's first purchase anywhere. */
+  welcome: number;
+  total: number;
+  balance: number;
+};
+
+/**
+ * A meal eaten in the shop: written down, and worth points on the same rate a
+ * website order earns. The visit row is the record Peter asked for — the date,
+ * what they spent and what it was worth — and the points themselves go into
+ * the same history as everything else, so the customer sees one list.
+ */
+export async function recordVisit(
+  admin: Admin,
+  args: { customerId: string; amountSatang: number; note?: string | null; by?: string | null },
+): Promise<Visit | { error: string }> {
+  const { data: settings } = await admin
+    .from('loyalty_settings')
+    .select('satang_per_point, points_enabled, welcome_points')
+    .limit(1)
+    .maybeSingle();
+
+  const per = settings?.satang_per_point ?? 10000;
+  const enabled = settings?.points_enabled ?? true;
+  const welcome = settings?.welcome_points ?? 0;
+  const points = enabled ? Math.floor(args.amountSatang / per) : 0;
+
+  const { data: visit, error: visitErr } = await admin
+    .from('store_visits')
+    .insert({
+      customer_id: args.customerId,
+      amount_satang: args.amountSatang,
+      points_awarded: points,
+      note: args.note?.trim() || null,
+      created_by: args.by ?? null,
+    })
+    .select('id')
+    .single();
+  if (visitErr || !visit) return { error: visitErr?.message ?? 'could not record the visit' };
+
+  if (points > 0) {
+    const { error } = await admin.from('point_events').insert({
+      customer_id: args.customerId,
+      delta: points,
+      kind: 'instore',
+      visit_id: visit.id,
+      note: `กินที่ร้าน ${(args.amountSatang / 100).toLocaleString('en-US')} บาท / In the shop`,
+      created_by: args.by ?? null,
+    });
+    // The two must agree, so a visit whose points did not land is not kept.
+    if (error) {
+      await admin.from('store_visits').delete().eq('id', visit.id);
+      return { error: error.message };
+    }
+  }
+
+  // The first purchase a customer makes earns their welcome, whether they
+  // made it on the website or at a table. The unique index refuses a second
+  // one, so this is only counted as given when the insert went through.
+  let given = 0;
+  if (enabled && welcome > 0) {
+    const { error } = await admin.from('point_events').insert({
+      customer_id: args.customerId, delta: welcome, kind: 'welcome', note: 'สมาชิกใหม่ / Welcome',
+    });
+    if (!error) given = welcome;
+  }
+
+  return {
+    visitId: visit.id,
+    points,
+    welcome: given,
+    total: points + given,
+    balance: await balanceOf(admin, args.customerId),
+  };
+}

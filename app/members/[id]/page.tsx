@@ -7,11 +7,13 @@ import { baht } from '@/lib/money';
 import { Nav } from '@/components/Nav';
 import { useLang, statusLabel, type Lang } from '@/lib/i18n';
 import { shopTime, dayKey, dayLabel } from '@/lib/day';
+import { prettyPhone } from '@/lib/phone';
 
 type Member = {
   id: string;
   display_name: string | null;
   line_user_id: string | null;
+  phone: string | null;
   points_balance: number;
   created_at: string;
 };
@@ -27,6 +29,7 @@ type Claim = {
   id: string; code: string | null; status: string; points_cost: number;
   reward_title_th: string; reward_title_en: string; created_at: string;
 };
+type Visit = { id: string; amount_satang: number; points_awarded: number; note: string | null; created_at: string };
 type Lot = { remaining: number; expires_at: string | null };
 
 const stamp = (iso: string, lang: Lang, words: { today: string; yesterday: string }) =>
@@ -39,6 +42,11 @@ export default function MemberPage() {
   const [events, setEvents] = useState<Event[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [claims, setClaims] = useState<Claim[]>([]);
+  const [visits, setVisits] = useState<Visit[]>([]);
+  const [phone, setPhone] = useState('');
+  const [phoneBusy, setPhoneBusy] = useState(false);
+  const [phoneMsg, setPhoneMsg] = useState<string | null>(null);
+  const [phoneErr, setPhoneErr] = useState<string | null>(null);
   const [delta, setDelta] = useState(50);
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
@@ -51,16 +59,20 @@ export default function MemberPage() {
     // Nothing happens to a customer's points on the day they run out, so the
     // balance is brought up to date before it is read rather than shown stale.
     await sb.rpc('expire_points', { p_customer: id });
-    const [m, e, o, r, lots] = await Promise.all([
-      sb.from('customers').select('id, display_name, line_user_id, points_balance, created_at').eq('id', id).maybeSingle(),
+    const [m, e, o, r, v, lots] = await Promise.all([
+      sb.from('customers').select('id, display_name, line_user_id, phone, points_balance, created_at').eq('id', id).maybeSingle(),
       sb.from('point_events').select('*').eq('customer_id', id).order('created_at', { ascending: false }).limit(100),
       sb.from('orders').select('id, short_code, status, total_satang, fulfilment_mode, created_at')
         .eq('customer_id', id).order('created_at', { ascending: false }).limit(50),
       sb.from('redemptions').select('id, code, status, points_cost, reward_title_th, reward_title_en, created_at')
         .eq('customer_id', id).order('created_at', { ascending: false }).limit(50),
+      sb.from('store_visits').select('id, amount_satang, points_awarded, note, created_at')
+        .eq('customer_id', id).order('created_at', { ascending: false }).limit(50),
       sb.rpc('point_lots', { p_customer: id }),
     ]);
     setMember((m.data ?? null) as Member | null);
+    setPhone(((m.data ?? null) as Member | null)?.phone ?? '');
+    setVisits((v.data ?? []) as Visit[]);
     setEvents((e.data ?? []) as Event[]);
     setOrders((o.data ?? []) as Order[]);
     setClaims((r.data ?? []) as Claim[]);
@@ -94,12 +106,31 @@ export default function MemberPage() {
     await load();
   }
 
+  async function savePhone() {
+    setPhoneBusy(true); setPhoneErr(null); setPhoneMsg(null);
+    const res = await fetch(`/api/members/${id}/phone`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ phone }),
+    });
+    const body = (await res.json().catch(() => ({}))) as { error?: string; phone?: string | null };
+    setPhoneBusy(false);
+    if (!res.ok) {
+      setPhoneErr(body.error === 'taken' ? t.phoneTaken : body.error === 'phone' ? t.badPhone : body.error ?? 'error');
+      return;
+    }
+    setPhoneMsg(t.phoneSaved);
+    setTimeout(() => setPhoneMsg(null), 2200);
+    await load();
+  }
+
   const kindLabel = (k: string) =>
     k === 'earn' ? t.keEarn
     : k === 'welcome' ? t.keWelcome
     : k === 'redeem' ? t.keRedeem
     : k === 'refund' ? t.keRefund
     : k === 'expire' ? t.keExpire
+    : k === 'instore' ? t.keInstore
     : t.keManual;
 
   const claimLabel = (s: string) =>
@@ -122,6 +153,7 @@ export default function MemberPage() {
               <h1 className="serif text-xl truncate">{member.display_name ?? t.lineCustomer}</h1>
               <p className="text-ink-3 text-xs">
                 {t.memberSince(dayLabel(dayKey(member.created_at), lang, t))}
+                {member.phone ? ` · ${prettyPhone(member.phone)}` : ''}
                 {member.line_user_id ? ' · LINE' : ''}
               </p>
             </div>
@@ -144,6 +176,30 @@ export default function MemberPage() {
               {flash > 0 ? `+${flash}` : flash} · {t.applyAdjust}
             </div>
           )}
+        </section>
+
+        <section className="card p-4 space-y-2">
+          <h2 className="serif text-base">{t.phoneOnFile}</h2>
+          <p className="text-ink-3 text-xs">{t.phoneWhy}</p>
+          <div className="flex gap-2">
+            <input
+              value={phone}
+              onChange={(e) => { setPhone(e.target.value); setPhoneErr(null); }}
+              type="tel"
+              inputMode="tel"
+              placeholder={t.phonePlaceholder}
+              className="flex-1 rounded-xl border border-rule p-2 text-sm tracking-wide"
+            />
+            <button
+              onClick={savePhone}
+              disabled={phoneBusy || phone.trim() === (member.phone ?? '')}
+              className="btn-outline shrink-0 disabled:opacity-40"
+            >
+              {phoneBusy ? '…' : t.savePhone}
+            </button>
+          </div>
+          {phoneErr && <div className="text-accent text-sm">{phoneErr}</div>}
+          {phoneMsg && <div className="text-veg text-sm">{phoneMsg}</div>}
         </section>
 
         <section className="card p-4 space-y-3">
@@ -210,6 +266,26 @@ export default function MemberPage() {
                   {c.code && <span className="chip font-mono">{c.code}</span>}
                   <span className="chip">{claimLabel(c.status)}</span>
                   <span className="text-ink-3 text-xs w-14 text-right shrink-0">−{c.points_cost}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section className="card p-4">
+          <h2 className="serif text-base mb-2">{t.visitHistory}</h2>
+          {visits.length === 0 ? <p className="text-ink-3 text-sm">{t.nothingYet}</p> : (
+            <ul className="divide-y divide-rule">
+              {visits.map((v) => (
+                <li key={v.id} className="flex items-center gap-3 py-2 text-sm">
+                  <span className="text-ink-3 text-xs w-28 shrink-0">{stamp(v.created_at, lang, t)}</span>
+                  <span className="flex-1 min-w-0 truncate">
+                    {v.note ?? <span className="text-ink-3">{t.inStoreTitle}</span>}
+                  </span>
+                  <span className="text-veg text-xs w-12 text-right shrink-0">
+                    {v.points_awarded > 0 ? `+${v.points_awarded}` : ''}
+                  </span>
+                  <span className="w-16 text-right font-medium">{baht(v.amount_satang)}</span>
                 </li>
               ))}
             </ul>

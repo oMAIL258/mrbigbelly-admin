@@ -43,6 +43,7 @@ export function Nav() {
 
   const tabs = [
     { href: '/orders', label: t.orders },
+    { href: '/instore', label: t.inStore },
     { href: '/menu', label: t.menu },
     { href: '/members', label: t.members },
     { href: '/rewards', label: t.rewardsTab },
