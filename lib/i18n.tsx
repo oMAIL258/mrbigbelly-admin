@@ -109,6 +109,13 @@ const TH = {
   weekdays: ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'],
 
   // Settings
+  deviceAlerts: 'เตือนที่เครื่องนี้',
+  deviceAlertsNote: 'เปิดไว้แล้วเครื่องนี้จะเด้งเตือนเวลามีออเดอร์ใหม่ แม้จะเปิดแอปอื่นอยู่หรือจอดับ ต้องกดอนุญาตการแจ้งเตือนของ Chrome ครั้งเดียว',
+  deviceAlertsOn: '🔔 เครื่องนี้เปิดเตือนอยู่',
+  deviceAlertsOff: 'เครื่องนี้ยังไม่ได้เปิดเตือน',
+  deviceAlertsTurnOn: 'เปิดเตือนที่เครื่องนี้',
+  deviceAlertsUnsupported: 'เบราว์เซอร์นี้เตือนแบบนี้ไม่ได้ ลองเปิดจากแอปที่ติดตั้งไว้',
+  deviceAlertsFailed: 'เปิดไม่สำเร็จ ลองอนุญาตการแจ้งเตือนใน Chrome แล้วลองใหม่',
   takingOrders: 'การรับออเดอร์',
   takingOrdersNote: 'ปิดสวิตช์นี้เวลาหยุดร้านหรือปิดก่อนเวลา ลูกค้าจะยังเห็นเมนูแต่สั่งไม่ได้จนกว่าจะเปิดอีกครั้ง',
   openTapToClose: 'เปิดรับออเดอร์ — กดเพื่อปิดร้าน',
@@ -390,6 +397,13 @@ const EN: typeof TH = {
   nOrders: (n) => `${n} order${n > 1 ? 's' : ''}`,
   weekdays: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
 
+  deviceAlerts: 'Alerts on this device',
+  deviceAlertsNote: 'With this on, this device pops up an alert the moment an order arrives, even with another app in front or the screen off. Chrome asks you to allow notifications once.',
+  deviceAlertsOn: '🔔 This device is being alerted',
+  deviceAlertsOff: 'This device is not being alerted yet',
+  deviceAlertsTurnOn: 'Turn on alerts here',
+  deviceAlertsUnsupported: 'This browser cannot do these alerts. Open the admin from the installed app instead.',
+  deviceAlertsFailed: 'That did not work. Allow notifications in Chrome, then try again.',
   takingOrders: 'Taking orders',
   takingOrdersNote: 'Switch this off for a holiday or when you close early. Customers still see the menu, but cannot place an order until you switch it back on.',
   openTapToClose: 'Open — tap to close the shop',

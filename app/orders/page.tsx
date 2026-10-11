@@ -5,6 +5,7 @@ import { supabaseBrowser } from '@/lib/supabase-browser';
 import { baht } from '@/lib/money';
 import { Nav } from '@/components/Nav';
 import { alarm, unlockAudio, askNotifyPermission, notify } from '@/lib/alarm';
+import { enablePush } from '@/lib/push';
 import { dayKey, todayKey, dayBounds, shiftDay, dayLabel, shopTime } from '@/lib/day';
 import { useLang } from '@/lib/i18n';
 
@@ -141,7 +142,7 @@ export default function OrderBoardPage() {
   }, [newCount, isToday, t]);
 
   useEffect(() => {
-    const unlock = () => { unlockAudio(); void askNotifyPermission(); };
+    const unlock = () => { unlockAudio(); void askNotifyPermission().then(enablePush); };
     window.addEventListener('pointerdown', unlock, { once: true });
     return () => window.removeEventListener('pointerdown', unlock);
   }, []);
@@ -160,7 +161,7 @@ export default function OrderBoardPage() {
             )}
           </h1>
           <div className="flex gap-2">
-            <button onClick={() => { unlockAudio(); void askNotifyPermission(); alarm(); }} className="btn-outline">
+            <button onClick={() => { unlockAudio(); void askNotifyPermission().then(enablePush); alarm(); }} className="btn-outline">
               {t.testAlarm}
             </button>
             <button onClick={() => { unlockAudio(); setBellOn((v) => !v); }} className="btn-outline">

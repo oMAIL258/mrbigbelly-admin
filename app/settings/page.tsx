@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react';
 import { supabaseBrowser } from '@/lib/supabase-browser';
 import { Nav } from '@/components/Nav';
 import { useLang } from '@/lib/i18n';
+import { askNotifyPermission } from '@/lib/alarm';
+import { enablePush, pushState } from '@/lib/push';
 
 type TokenState =
   | { code: 'missing' }
@@ -48,6 +50,7 @@ export default function SettingsPage() {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [alerted, setAlerted] = useState<Set<string>>(new Set());
   const [loyalty, setLoyalty] = useState<Loyalty | null>(null);
+  const [alerts, setAlerts] = useState<'on' | 'off' | 'unsupported' | 'failed'>('off');
   const { t } = useLang();
 
   const tokenText = (state: TokenState) =>
@@ -55,6 +58,13 @@ export default function SettingsPage() {
     : state.code === 'missing' ? t.tokenMissing
     : state.code === 'rejected' ? t.tokenRejected(state.status, state.body)
     : t.lineUnreachable(state.message);
+
+  useEffect(() => { void pushState().then(setAlerts); }, []);
+
+  async function turnOnAlerts() {
+    await askNotifyPermission();
+    setAlerts(await enablePush() ? 'on' : 'failed');
+  }
 
   useEffect(() => {
     (async () => {
@@ -181,6 +191,21 @@ export default function SettingsPage() {
                 className="mt-1 w-full rounded-xl border border-rule p-2 text-sm"
               />
             </div>
+          )}
+        </section>
+
+        <section className={`card p-4 space-y-3 ${alerts === 'on' ? '' : 'border-accent'}`}>
+          <h2 className="serif text-base">{t.deviceAlerts}</h2>
+          <p className="text-ink-3 text-sm">{t.deviceAlertsNote}</p>
+          {alerts === 'on' ? (
+            <p className="text-veg text-sm font-medium">{t.deviceAlertsOn}</p>
+          ) : alerts === 'unsupported' ? (
+            <p className="text-ink-2 text-sm">{t.deviceAlertsUnsupported}</p>
+          ) : (
+            <>
+              <p className="text-ink-2 text-sm">{alerts === 'failed' ? t.deviceAlertsFailed : t.deviceAlertsOff}</p>
+              <button onClick={() => void turnOnAlerts()} className="btn-primary">{t.deviceAlertsTurnOn}</button>
+            </>
           )}
         </section>
 
