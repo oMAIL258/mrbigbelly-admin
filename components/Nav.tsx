@@ -27,7 +27,7 @@ export function Nav() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'redemptions' }, (payload) => {
         if (payload.eventType === 'INSERT') {
           chime();
-          notify(t.requests, t.newRequestsBadge(1));
+          notify(t.requests, t.newRequestsBadge(1), '/requests');
         }
         void count();
       })

@@ -85,9 +85,37 @@ export default function OrderBoardPage() {
             : [row, ...cur]);
         }
       })
-      .subscribe();
+      // A dropped socket misses inserts, so every (re)join reloads the day.
+      .subscribe((status) => { if (status === 'SUBSCRIBED') void load(); });
     return () => { sb.removeChannel(ch); };
-  }, [day, t]);
+  }, [day, t, load]);
+
+  // The counter terminal is a kiosk: keep its screen on while the board is up,
+  // because Android pauses a page behind a dark screen and the bell with it.
+  // Coming back to the board reloads it, and a slow poll covers a socket that
+  // died without saying so.
+  useEffect(() => {
+    let lock: { release: () => Promise<void> } | null = null;
+    const wake = async () => {
+      try {
+        if ('wakeLock' in navigator && document.visibilityState === 'visible' && !lock) {
+          lock = await navigator.wakeLock.request('screen');
+          (lock as unknown as EventTarget).addEventListener('release', () => { lock = null; });
+        }
+      } catch { /* refused or unsupported */ }
+    };
+    const onShow = () => { if (document.visibilityState === 'visible') { void wake(); void load(); } };
+    void wake();
+    document.addEventListener('visibilitychange', onShow);
+    window.addEventListener('pointerdown', wake);
+    const poll = setInterval(() => { if (document.visibilityState === 'visible') void load(); }, 60_000);
+    return () => {
+      document.removeEventListener('visibilitychange', onShow);
+      window.removeEventListener('pointerdown', wake);
+      clearInterval(poll);
+      void lock?.release();
+    };
+  }, [load]);
 
   const newCount = orders.filter((o) => o.status === 'new').length;
 

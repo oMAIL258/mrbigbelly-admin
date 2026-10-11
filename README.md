@@ -23,3 +23,11 @@ Env vars in Site settings → Environment:
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
 - `SUPABASE_SECRET_KEY`
 - `LINE_CHANNEL_ACCESS_TOKEN`
+
+## On the counter terminal (Sunmi D3 / any Android)
+The admin installs as an app from Chrome; there is nothing to download.
+1. Open the admin site in **Chrome**, sign in, tap ⋮ → **Install app** (or *Add to home screen*).
+2. Open it from the new icon, tap **Test alarm** once and allow notifications. Turn the terminal's media volume up.
+3. Leave the order board on screen. It keeps the screen awake while it is open and rings every 8 s until each new order is accepted.
+
+Android may put Chrome to sleep when the board is closed or behind another app, so the bell and the pop-up are only dependable with the board open. For an alert on a phone away from the counter, use the LINE staff alert on Settings (`sql/03-staff-alerts.sql`).
