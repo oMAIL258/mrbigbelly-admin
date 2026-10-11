@@ -1,8 +1,12 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { LangProvider } from '@/lib/i18n';
+import { Worker } from '@/components/Worker';
 
-export const metadata: Metadata = { title: 'Mr. Big Belly · Admin' };
+export const metadata: Metadata = {
+  title: 'Mr. Big Belly · Admin',
+  icons: { icon: '/icon-192.png', apple: '/apple-touch-icon.png' },
+};
 export const viewport: Viewport = { width: 'device-width', initialScale: 1, themeColor: '#F7F1E7' };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -17,6 +21,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className="min-h-screen">
+        <Worker />
         <LangProvider>{children}</LangProvider>
       </body>
     </html>

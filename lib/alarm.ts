@@ -47,12 +47,29 @@ export async function askNotifyPermission() {
   } catch { /* unsupported */ }
 }
 
-/** A system notification, which shows even when the board is in a background tab. */
-export function notify(title: string, body: string) {
+/**
+ * A system notification, which shows even when the board is behind another
+ * app. Android Chrome refuses `new Notification()` outright, so it goes
+ * through the service worker whenever one is registered.
+ */
+export function notify(title: string, body: string, url = '/orders') {
   try {
-    if ('Notification' in window && Notification.permission === 'granted') {
-      new Notification(title, { body, tag: 'mbb-order' });
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    const opts = { body, tag: 'mbb-order', renotify: true, icon: '/icon-192.png', data: { url } } as NotificationOptions;
+    if ('serviceWorker' in navigator) {
+      void navigator.serviceWorker.getRegistration()
+        .then((reg) => { if (reg) return reg.showNotification(title, opts); new Notification(title, opts); })
+        .catch(() => {});
+      return;
     }
+    new Notification(title, opts);
+  } catch { /* unsupported */ }
+}
+
+/** Registers the worker that shows notifications and makes the admin installable. */
+export function registerWorker() {
+  try {
+    if ('serviceWorker' in navigator) void navigator.serviceWorker.register('/sw.js').catch(() => {});
   } catch { /* unsupported */ }
 }
 

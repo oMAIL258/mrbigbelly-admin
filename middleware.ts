@@ -21,7 +21,9 @@ export async function middleware(req: NextRequest) {
   );
   const { data: { user } } = await supabase.auth.getUser();
   const path = req.nextUrl.pathname;
-  const isPublic = path === '/login' || path.startsWith('/_next') || path.startsWith('/api/line');
+  // The install files are fetched by Chrome without the session cookie.
+  const isPublic = path === '/login' || path.startsWith('/_next') || path.startsWith('/api/line')
+    || path === '/manifest.webmanifest' || path === '/sw.js' || /^\/(icon-[\w-]+|apple-touch-icon)\.png$/.test(path);
   if (!user && !isPublic) {
     const url = req.nextUrl.clone(); url.pathname = '/login';
     return NextResponse.redirect(url);
