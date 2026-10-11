@@ -23,6 +23,7 @@ Env vars in Site settings → Environment:
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
 - `SUPABASE_SECRET_KEY`
 - `LINE_CHANNEL_ACCESS_TOKEN`
+- `NEXT_PUBLIC_VAPID_PUBLIC_KEY` — public half of the push keypair; the private half lives on the ordering site.
 
 ## On the counter terminal (Sunmi D3 / any Android)
 The admin installs as an app from Chrome; there is nothing to download.
@@ -30,4 +31,7 @@ The admin installs as an app from Chrome; there is nothing to download.
 2. Open it from the new icon, tap **Test alarm** once and allow notifications. Turn the terminal's media volume up.
 3. Leave the order board on screen. It keeps the screen awake while it is open and rings every 8 s until each new order is accepted.
 
-Android may put Chrome to sleep when the board is closed or behind another app, so the bell and the pop-up are only dependable with the board open. For an alert on a phone away from the counter, use the LINE staff alert on Settings (`sql/03-staff-alerts.sql`).
+### Alerts while the board is not in front
+Settings → *Alerts on this device* registers the installed app with Android's push service, so an order rings even behind the till app or with the screen off. It needs `sql/09-device-alerts.sql`, `NEXT_PUBLIC_VAPID_PUBLIC_KEY` here, and the matching pair on the ordering site, which is what actually sends the push.
+
+Android may still put Chrome to sleep to save battery; allow background activity for Chrome on the terminal. The LINE staff alert on Settings (`sql/03-staff-alerts.sql`) stays the route for a phone away from the shop.
