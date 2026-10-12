@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { supabaseBrowser } from '@/lib/supabase-browser';
 import { Nav } from '@/components/Nav';
 import { useLang, type Lang } from '@/lib/i18n';
-import { shopTime, dayKey, dayLabel } from '@/lib/day';
+import { stamp } from '@/lib/day';
 
 type Claim = {
   id: string;
@@ -22,8 +22,6 @@ type Claim = {
 };
 
 const who = (c: Claim['customers']) => (Array.isArray(c) ? c[0] : c)?.display_name ?? null;
-const stamp = (iso: string, lang: Lang, words: { today: string; yesterday: string }) =>
-  `${dayLabel(dayKey(iso), lang, words)} ${shopTime(iso)}`;
 
 export default function RequestsPage() {
   const [claims, setClaims] = useState<Claim[]>([]);
