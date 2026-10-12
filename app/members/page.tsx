@@ -5,7 +5,7 @@ import { supabaseBrowser } from '@/lib/supabase-browser';
 import { baht } from '@/lib/money';
 import { Nav } from '@/components/Nav';
 import { useLang } from '@/lib/i18n';
-import { dayKey, dayLabel } from '@/lib/day';
+import { dayKey, todayKey, stamp } from '@/lib/day';
 import { prettyPhone } from '@/lib/phone';
 
 type Member = {
@@ -115,10 +115,19 @@ export default function MembersPage() {
                       {(m.display_name ?? '?').slice(0, 1).toUpperCase()}
                     </span>
                     <span className="flex-1 min-w-0">
-                      <span className="block text-sm truncate">{m.display_name ?? t.lineCustomer}</span>
+                      <span className="block text-sm truncate">
+                        {m.display_name ?? t.lineCustomer}
+                        {/* Somebody who joined today, so the counter knows this
+                            is a face it has not served before. */}
+                        {dayKey(m.created_at) === todayKey() && (
+                          <span className="ml-2 rounded-full bg-accent text-white text-[10px] px-1.5 py-0.5 align-middle">
+                            {t.joinedToday}
+                          </span>
+                        )}
+                      </span>
                       <span className="block text-ink-3 text-xs truncate">
                         {m.phone ? prettyPhone(m.phone) : t.noPhoneYet}
-                        {s ? ` · ${dayLabel(dayKey(s.last), lang, t)}` : ''}
+                        {s ? ` · ${stamp(s.last, lang, t)}` : ''}
                       </span>
                     </span>
                     <span className="text-right w-16 shrink-0">

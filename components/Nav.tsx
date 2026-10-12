@@ -35,6 +35,20 @@ export function Nav() {
     return () => { sb.removeChannel(ch); };
   }, [t]);
 
+  // Somebody joining is worth hearing about at the counter, so the shop can
+  // greet them. Softer than the order alarm: nobody is waiting on an answer.
+  useEffect(() => {
+    const sb = supabaseBrowser();
+    const ch = sb.channel('new-members')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'customers' }, (payload) => {
+        const row = payload.new as { display_name: string | null };
+        chime();
+        notify(t.newMemberTitle, row?.display_name?.trim() || t.lineCustomer, '/members');
+      })
+      .subscribe();
+    return () => { sb.removeChannel(ch); };
+  }, [t]);
+
   useEffect(() => {
     const unlock = () => unlockAudio();
     window.addEventListener('pointerdown', unlock, { once: true });

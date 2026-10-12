@@ -4,6 +4,7 @@ import Image from 'next/image';
 import { baht } from '@/lib/money';
 import { useLang, statusLabel } from '@/lib/i18n';
 import { prettyPhone } from '@/lib/phone';
+import { stamp } from '@/lib/day';
 import { OrderActions } from './actions-client';
 
 export type DetailItem = {
@@ -51,7 +52,7 @@ export function OrderDetail({ order }: { order: Detail }) {
         <span className="chip">{statusLabel(t, order.status)}</span>
       </div>
       <p className="text-ink-3 text-sm">
-        {new Date(order.created_at).toLocaleString(lang === 'th' ? 'th-TH' : 'en-GB', { timeZone: 'Asia/Bangkok' })}
+        {stamp(order.created_at, lang, t)}
       </p>
 
       <section className="card p-4 mt-3">

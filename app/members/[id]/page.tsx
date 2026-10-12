@@ -6,7 +6,7 @@ import { supabaseBrowser } from '@/lib/supabase-browser';
 import { baht } from '@/lib/money';
 import { Nav } from '@/components/Nav';
 import { useLang, statusLabel, type Lang } from '@/lib/i18n';
-import { shopTime, dayKey, dayLabel } from '@/lib/day';
+import { shopTime, dayKey, dayLabel, stamp } from '@/lib/day';
 import { prettyPhone } from '@/lib/phone';
 
 type Member = {
@@ -31,9 +31,6 @@ type Claim = {
 };
 type Visit = { id: string; amount_satang: number; points_awarded: number; note: string | null; created_at: string };
 type Lot = { remaining: number; expires_at: string | null };
-
-const stamp = (iso: string, lang: Lang, words: { today: string; yesterday: string }) =>
-  `${dayLabel(dayKey(iso), lang, words)} ${shopTime(iso)}`;
 
 export default function MemberPage() {
   const { id } = useParams<{ id: string }>();
@@ -152,7 +149,7 @@ export default function MemberPage() {
             <div className="flex-1 min-w-0">
               <h1 className="serif text-xl truncate">{member.display_name ?? t.lineCustomer}</h1>
               <p className="text-ink-3 text-xs">
-                {t.memberSince(dayLabel(dayKey(member.created_at), lang, t))}
+                {t.memberSince(stamp(member.created_at, lang, t))}
                 {member.phone ? ` · ${prettyPhone(member.phone)}` : ''}
                 {member.line_user_id ? ' · LINE' : ''}
               </p>
