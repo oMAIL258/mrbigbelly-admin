@@ -329,6 +329,8 @@ const TH = {
   promoNewTh: 'โปรใหม่',
   promoNewEn: 'New deal',
   promoDiscount: 'โปรโมชั่น',
+  promoPickupOnly: 'เฉพาะมารับที่ร้าน (ไม่ลดให้ออเดอร์จัดส่ง)',
+  needsSql12: 'รัน sql/12 ก่อนจึงจะแก้ได้',
 };
 
 const EN: typeof TH = {
@@ -633,6 +635,8 @@ const EN: typeof TH = {
   promoNewTh: 'โปรใหม่',
   promoNewEn: 'New deal',
   promoDiscount: 'Deal',
+  promoPickupOnly: 'Pickup only (not taken off deliveries)',
+  needsSql12: 'run sql/12 to change this',
 };
 
 const DICT = { th: TH, en: EN };

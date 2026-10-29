@@ -13,6 +13,9 @@ type Promo = {
   bundle_qty: number;
   bundle_price_satang: number;
   item_ids: string[];
+  /** Absent until sql/12 has been run, when the ordering site treats every
+   *  deal as pickup-only. */
+  pickup_only?: boolean;
 };
 type Cat = { id: string; name_en: string; name_th: string | null };
 type Item = { id: string; name_en: string; category_id: string };
@@ -93,6 +96,17 @@ export function Promotions() {
                 className="h-4 w-4 accent-accent"
               />
               {t.promoOn}
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={p.pickup_only !== false}
+                disabled={p.pickup_only === undefined}
+                onChange={(e) => edit(p.id, { pickup_only: e.target.checked }, true)}
+                className="h-4 w-4 accent-accent"
+              />
+              {t.promoPickupOnly}
+              {p.pickup_only === undefined && <span className="text-ink-3 text-xs">({t.needsSql12})</span>}
             </label>
             <label className="text-sm block">
               {t.promoTitleTh}
