@@ -31,3 +31,5 @@ Prerequisites: the schema (tables `categories`, `menu_items`, `option_groups`, `
    - `categories.available_from` — the time a category can first be ordered each day, set on the Menu page. Empty means all day. Everything except Coffee, Non-Coffee, Smoothie, Juice, Bowls and Sandwich starts at 09:00.
    - `promotions` — "any N of these items for ฿X between two times", edited on the Settings page. Seeded with the morning coffee deal (any 2 of Espresso, Americano, Latte, Cappuccino, Es-Yen for ฿130, 07:30–10:00, hot or iced).
    - `orders.promo_discount_satang`, `orders.promotion_id` — what a deal took off. `subtotal − promo − voucher = total`.
+
+12. **`12-pickup-only-deals.sql`** — `promotions.pickup_only`, on by default. A pickup-only deal is not taken off a delivery order. The ordering site already behaves this way before the file is run; the file adds the switch on the Settings page's Deals card.
