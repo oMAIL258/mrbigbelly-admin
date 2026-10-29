@@ -10,13 +10,16 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
   const { data: order } = await sb.from('orders').select('*').eq('id', id).single();
   if (!order) return <><Nav /><NotFound /></>;
 
-  const [{ data: items }, { data: delivery }, { data: slip }, { data: customer }, { data: voucher }] = await Promise.all([
+  const [{ data: items }, { data: delivery }, { data: slip }, { data: customer }, { data: voucher }, { data: promo }] = await Promise.all([
     sb.from('order_items').select('*').eq('order_id', id).order('created_at'),
     sb.from('delivery_details').select('*').eq('order_id', id).maybeSingle(),
     sb.from('payment_slips').select('*').eq('order_id', id).maybeSingle(),
     order.customer_id ? sb.from('customers').select('*').eq('id', order.customer_id).maybeSingle() : Promise.resolve({ data: null }),
     order.redemption_id
       ? sb.from('redemptions').select('reward_title_th, reward_title_en').eq('id', order.redemption_id).maybeSingle()
+      : Promise.resolve({ data: null }),
+    order.promotion_id
+      ? sb.from('promotions').select('title_th, title_en').eq('id', order.promotion_id).maybeSingle()
       : Promise.resolve({ data: null }),
   ]);
 
@@ -43,6 +46,10 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
     // Older orders predate the column and had nothing taken off them.
     subtotal_satang: order.subtotal_satang ?? order.total_satang,
     discount_satang: order.discount_satang ?? 0,
+    // Absent until sql/11 has been run.
+    promo_discount_satang: order.promo_discount_satang ?? 0,
+    promo_title_th: promo?.title_th ?? null,
+    promo_title_en: promo?.title_en ?? null,
     discount_title_th: voucher?.reward_title_th ?? null,
     discount_title_en: voucher?.reward_title_en ?? null,
     total_satang: order.total_satang,

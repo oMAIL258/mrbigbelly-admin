@@ -307,6 +307,28 @@ const TH = {
   bonusPoints: 'แต้มโบนัส',
   bonusHint: 'แต้มพิเศษเมื่อสั่งเมนูนี้ นอกเหนือจากแต้มตามยอดซื้อ',
   newRequestsBadge: (n: number) => `${n} คำขอใหม่`,
+
+  // Morning hours and deals
+  orderableFrom: 'สั่งได้ตั้งแต่',
+  allDay: 'ทั้งวัน',
+  allDayHint: 'เว้นว่าง = สั่งได้ตลอดเวลาที่ร้านเปิด',
+  needsSql11: 'ยังไม่ได้รัน sql/11-morning-menu-and-promos.sql ใน Supabase',
+  promosTitle: 'โปรโมชั่น',
+  promosNote: 'ซื้อเมนูที่เลือกครบจำนวน จ่ายราคาเดียว ภายในช่วงเวลาที่กำหนด ราคาแต่ละแก้วนับรวมตัวเลือก (เช่น เย็น) แล้ว และจะไม่แพงกว่าราคาปกติ',
+  promoOn: 'เปิดใช้โปรนี้',
+  promoTitleTh: 'ชื่อโปร (ไทย)',
+  promoTitleEn: 'ชื่อโปร (อังกฤษ)',
+  promoFrom: 'เริ่ม',
+  promoTo: 'ถึง',
+  promoQty: 'จำนวนชิ้น',
+  promoPrice: 'ราคารวม (บาท)',
+  promoItems: (n: number) => `เมนูที่ร่วมโปร (${n})`,
+  promoAdd: 'เพิ่มโปรโมชั่น',
+  promoDelete: 'ลบโปรนี้',
+  promoDeleteConfirm: 'ลบโปรโมชั่นนี้?',
+  promoNewTh: 'โปรใหม่',
+  promoNewEn: 'New deal',
+  promoDiscount: 'โปรโมชั่น',
 };
 
 const EN: typeof TH = {
@@ -590,6 +612,27 @@ const EN: typeof TH = {
   bonusPoints: 'Bonus points',
   bonusHint: 'Extra points for ordering this dish, on top of what it is worth.',
   newRequestsBadge: (n) => `${n} new request${n > 1 ? 's' : ''}`,
+
+  orderableFrom: 'Orderable from',
+  allDay: 'All day',
+  allDayHint: 'Empty means whenever the shop is open.',
+  needsSql11: 'sql/11-morning-menu-and-promos.sql has not been run in Supabase yet.',
+  promosTitle: 'Deals',
+  promosNote: 'Any of the ticked dishes, so many for one price, between two times. Each drink counts with what was picked on it (iced too), and a deal never costs more than the normal price.',
+  promoOn: 'Deal switched on',
+  promoTitleTh: 'Name (Thai)',
+  promoTitleEn: 'Name (English)',
+  promoFrom: 'From',
+  promoTo: 'Until',
+  promoQty: 'How many',
+  promoPrice: 'For (฿)',
+  promoItems: (n) => `Dishes in the deal (${n})`,
+  promoAdd: 'Add a deal',
+  promoDelete: 'Delete this deal',
+  promoDeleteConfirm: 'Delete this deal?',
+  promoNewTh: 'โปรใหม่',
+  promoNewEn: 'New deal',
+  promoDiscount: 'Deal',
 };
 
 const DICT = { th: TH, en: EN };

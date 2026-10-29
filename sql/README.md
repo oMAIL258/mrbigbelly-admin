@@ -24,3 +24,10 @@ Prerequisites: the schema (tables `categories`, `menu_items`, `option_groups`, `
    - `orders.subtotal_satang`, `orders.discount_satang`, `orders.redemption_id` — what the food came to, what came off, and which claim paid for it. `total_satang` stays the amount the customer transfers, so Reports keeps reading takings and points are earned on what was paid.
 
 6. **`06-discount-wording.sql`** — rewords the four seeded discounts, which still say a voucher has to be smaller than the order. It no longer does: a voucher covers a whole bill, and it can be spent at the counter as well as online. Only rows still carrying the original sentence are touched, so any you have reworded are left alone. No schema change, so it can wait.
+
+7–10. Later files follow the same pattern; each says at the top what it adds.
+
+11. **`11-morning-menu-and-promos.sql`** — morning hours per category and time-limited bundle deals. It adds:
+   - `categories.available_from` — the time a category can first be ordered each day, set on the Menu page. Empty means all day. Everything except Coffee, Non-Coffee, Smoothie, Juice, Bowls and Sandwich starts at 09:00.
+   - `promotions` — "any N of these items for ฿X between two times", edited on the Settings page. Seeded with the morning coffee deal (any 2 of Espresso, Americano, Latte, Cappuccino, Es-Yen for ฿130, 07:30–10:00, hot or iced).
+   - `orders.promo_discount_satang`, `orders.promotion_id` — what a deal took off. `subtotal − promo − voucher = total`.
