@@ -5,6 +5,7 @@ import { Nav } from '@/components/Nav';
 import { useLang } from '@/lib/i18n';
 import { askNotifyPermission } from '@/lib/alarm';
 import { enablePush, pushState } from '@/lib/push';
+import { Promotions } from '@/components/Promotions';
 
 type TokenState =
   | { code: 'missing' }
@@ -233,6 +234,8 @@ export default function SettingsPage() {
             {saving ? t.saving : t.save}
           </button>
         </section>
+
+        <Promotions />
 
         {loyalty && (
           <section className="card p-4 space-y-3">

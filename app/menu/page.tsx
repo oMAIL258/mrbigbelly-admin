@@ -11,7 +11,8 @@ type Item = {
   price_satang: number; is_available: boolean; category_id: string; photo_url: string | null;
   bonus_points: number;
 };
-type Cat = { id: string; name_en: string; name_th: string | null; sort: number };
+// available_from is absent until sql/11 has been run.
+type Cat = { id: string; name_en: string; name_th: string | null; sort: number; available_from?: string | null };
 
 export default function MenuAdminPage() {
   const [cats, setCats] = useState<Cat[]>([]);
@@ -23,7 +24,7 @@ export default function MenuAdminPage() {
   async function load() {
     const sb = supabaseBrowser();
     const [c, i] = await Promise.all([
-      sb.from('categories').select('id, name_en, name_th, sort').order('sort'),
+      sb.from('categories').select('*').order('sort'),
       sb.from('menu_items').select('id, name_en, name_th, price_satang, is_available, category_id, photo_url, bonus_points').order('sort'),
     ]);
     if (c.data) setCats(c.data as Cat[]);
@@ -63,6 +64,15 @@ export default function MenuAdminPage() {
     if (error) setErr(error.message);
   }
 
+  // The time a category can first be ordered each day. Empty is all day.
+  async function setFrom(c: Cat, value: string) {
+    const available_from = value ? `${value}:00` : null;
+    setCats((cur) => cur.map((x) => (x.id === c.id ? { ...x, available_from } : x)));
+    setErr(null);
+    const { error } = await supabaseBrowser().from('categories').update({ available_from }).eq('id', c.id);
+    if (error) setErr(/available_from/.test(error.message) ? t.needsSql11 : error.message);
+  }
+
   async function removePhoto(it: Item) {
     setBusy(it.id); setErr(null);
     const { error } = await supabaseBrowser().from('menu_items').update({ photo_url: null }).eq('id', it.id);
@@ -83,7 +93,23 @@ export default function MenuAdminPage() {
           if (list.length === 0) return null;
           return (
             <section key={c.id} className="mb-5">
-              <h2 className="serif text-base mb-2">{pickName(lang, c.name_en, c.name_th)}</h2>
+              <div className="flex items-end justify-between gap-2 mb-2">
+                <h2 className="serif text-base">{pickName(lang, c.name_en, c.name_th)}</h2>
+                <label className="text-right text-xs text-ink-3" title={t.allDayHint}>
+                  {t.orderableFrom}{' '}
+                  <input
+                    type="time"
+                    value={c.available_from?.slice(0, 5) ?? ''}
+                    onChange={(e) => void setFrom(c, e.target.value)}
+                    className={`rounded-xl border p-1 text-sm ${c.available_from ? 'border-gold text-ink' : 'border-rule'}`}
+                  />
+                  {c.available_from ? (
+                    <button onClick={() => void setFrom(c, '')} className="ml-1 underline">{t.allDay}</button>
+                  ) : (
+                    <span className="ml-1">{t.allDay}</span>
+                  )}
+                </label>
+              </div>
               <ul className="card divide-y divide-rule">
                 {list.map((it) => (
                   <MenuRow
